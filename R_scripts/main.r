@@ -24,9 +24,9 @@ graphics.off() # clean graphics display
 BDM <- F # select dataset, "All" or only "BDM" monitoring programs
 file.prefix <- ifelse(BDM, "BDM_", "All_")
 
-CV <- T              # train for cross-validation (CV)
+CV <- F              # train for cross-validation (CV)
 ODG <- ifelse(CV, F, # if CV = T, no out-of-domain generalization (ODG)
-                  F  # train for out-of-domain generalization (ODG)
+                  T  # train for out-of-domain generalization (ODG)
                   )  # if CV = F and ODG = F, train on whole dataset (FIT)
 
 ODG.info <- c(training.ratio = 0.8,     # ratio of data used for calibration in ODG
@@ -54,13 +54,13 @@ case.compar <- c(     # comparison analysis of models trained on different datas
 )
 
 server <- F # run the script on the server (changes number of cores)
-
+plot.all.ICE <- F # produce ICE/PDP plots for paper
 
 ## Libraries ####
 
 # Set a checkpoint to use same library versions, which makes the code repeatable over time
 if ( !require("checkpoint") ) { install.packages("checkpoint"); library("checkpoint") }
-checkpoint("2022-01-01", r_version = "4.1.1") # replace with desired date
+checkpoint("2022-01-01", r_version = "4.1.1") # replace with desired date and R version
 
 if ( !require("parallel") ) { install.packages("parallel"); library("parallel") }           # to run things in parallel
 
@@ -483,7 +483,7 @@ info.file.ann.name <-  paste0("ANN_models_",
 file.name <- paste0(dir.models.output, info.file.ann.name, ".rds")
 cat(file.name)
 
-if(file.exists(file.name)){
+if(file.exists(file.name) & plot.all.ICE == F){
   cat("The file already exists. Reading it", file.name)
   if(CV | ODG){
     ann.outputs.cv <- readRDS(file = file.name)
@@ -888,30 +888,35 @@ print.pdf.plots(list.plots = list.plots, width = 8.4, height = 11.88, # A4 propo
 # Plots specifically related to trained models (and not to CV)
 
 # If CV or ODG, take just the first split for trained models analysis
+# Doesn't work for CV for now
 if(CV | ODG){
   outputs <- outputs.cv[[1]]
   normalization.data.cv <- normalization.data
+  ref.data <- standardized.data[[1]][[1]]
+} else {
+  ref.data <- standardized.data[[1]]
 }
 
-temp.select.taxa <- list(select.taxa, list.taxa[which(list.taxa != "Occurrence.Perlodidae")])
-temp.select.env.fact <- list(env.fact, env.fact[1])
+if(plot.all.ICE == T){ # to produce all ICE/PDP provided in manuscript and Supp. Inf.
+  temp.select.taxa <- list(select.taxa, list.taxa[which(list.taxa != "Occurrence.Perlodidae")])
+  temp.select.env.fact <- list(env.fact, env.fact[1])
+} else { # 
+  temp.select.taxa <- list(select.taxa[1], select.taxa[1])
+  temp.select.env.fact <- list(env.fact[1], env.fact[2])
+}
 
-temp.select.taxa <- list(select.taxa[1], select.taxa[2])
-temp.select.env.fact <- list(env.fact[1], env.fact[2])
-
-
-for (n in 1:2) {
+for (n in 1:length(temp.select.taxa)) {
   
   subselect.taxa <- temp.select.taxa[[n]]
   select.env.fact <- temp.select.env.fact[[n]]
   
-  ## Individual Cond. Exp. (ICE) ####
+  ## ICE/PDP ####
   
   no.samples <- 100
   no.steps <- 200
   subselect <- 1
   
-  list.list.plots <- lapply(subselect.taxa, FUN= plot.ice.per.taxa, outputs = outputs, ref.data = standardized.data[[1]], 
+  list.list.plots <- lapply(subselect.taxa, FUN= plot.ice.per.taxa, outputs = outputs, ref.data = ref.data, 
                             list.models = list.models, list.taxa = list.taxa,
                             env.fact = env.fact, select.env.fact = select.env.fact,
                             normalization.data = normalization.data, ODG = ODG, 
@@ -919,7 +924,7 @@ for (n in 1:2) {
   
   for (j in 1:length(subselect.taxa)) {
     taxon <- sub("Occurrence.", "", subselect.taxa[j])
-    file.name <- paste0("ICE_", no.samples, "samp_", taxon)
+    file.name <- paste0("ICE_", no.samples, "samp_", taxon, "_", length(select.env.fact), "envfact")
     print.pdf.plots(list.plots = list.list.plots[[j]], width = 8, height = 12, 
                     dir.output = paste0(dir.plots.output, "ICE/"), 
                     info.file.name = info.file.name, file.name = file.name) #,

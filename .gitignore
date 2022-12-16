@@ -1,1 +1,2 @@
-Output_data/Trained_models/*
+*.RData
+*.rds
