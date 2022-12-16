@@ -22,134 +22,7 @@ Cap <- function(x) {
 
 ## ---- Data preprocessing ----
 
-preprocess.data <- function(data.env, data.inv, prev.inv, taxa.ibch = NA, remove.na.env.fact = T, remove.na.taxa = T, prev.restrict, env.fact.full, vect.info, dir.workspace, BDM){
-    
-  # Print information
-  cind.taxa <- which(grepl("Occurrence.", colnames(data.inv)))
-  list.taxa <- colnames(data.inv)[cind.taxa]
-  cat("\nSummary information of original datasets before preprocessing:\n",
-      length(unique(data.inv$SampId)), "samples,\n",
-      length(unique(data.inv$SiteId)), "sites,\n",
-      length(list.taxa), "taxa (including missing values) with taxonomic level:\n")
-  
-  print(summary(as.factor(prev.inv[which(prev.inv$Occurrence.taxa %in% list.taxa), "Taxonomic.level"])))
-  
-  if(remove.na.env.fact){
-    # Drop rows with incomplete influence factors
-    rind <- !apply(is.na(data.env[,env.fact.full]), 1, FUN=any)
-    rind <- ifelse(is.na(rind), FALSE, rind)
-    cat(paste("\nExcluding samples because of incomplete environmental factor:", sum(!rind),"\n"))
-    data.env <- data.env[rind,]
-    dim(data.env)
-  }
-  data.inv <- data.inv[data.inv$SampId %in% data.env$SampId, ]
-  
-  if(remove.na.taxa){
-    # Drop taxa with too many NAs
-    too.many.na <- c()
-    threshold <- ifelse(BDM, 100, 200)
-    for(i in cind.taxa){
-      if(sum(is.na(data.inv[,i])) > threshold){ too.many.na <- c(too.many.na, i)}
-    }
-    cat("\nExcluding following", length(too.many.na), "taxa because they have more than", 
-        threshold, "NAs:\n", gsub("Occurrence.", "", colnames(data.inv)[too.many.na]), "\n")
-    if(!is.null(too.many.na)){
-      data.inv <- data.inv[, -too.many.na]
-    }
-    
-    # Drop rows with incomplete taxa
-    cind.taxa <- which(grepl("Occurrence.", colnames(data.inv)))
-    rind <- !apply(is.na(data.inv[,cind.taxa]), 1, FUN=any)
-    rind <- ifelse(is.na(rind), FALSE, rind)
-    cat(paste("\nExcluding samples because of incomplete taxa:", sum(!rind),"\n"))
-    data.inv <- data.inv[rind,]
-    dim(data.inv)
-    
-    # Delete taxa with only presence or absence (happens because we deleted rows)
-    # Delete taxa with less than 5% of only present or absent
-    cind.taxa <- which(grepl("Occurrence.",colnames(data.inv)))
-    no.samples <- nrow(data.inv)
-    prev.perc <- prev.restrict*no.samples
-    cind.rem <- c()
-    for (j in cind.taxa) {
-        if(sum(data.inv[,j]) < prev.perc | sum(data.inv[,j]) > no.samples - prev.perc){ cind.rem <- c(cind.rem, j) }
-    }
-    cat("\nExcluding",  length(cind.rem),"taxa because they have less than", 100*prev.restrict, "% or more than", 
-        100 - 100*prev.restrict, "% of prevalence:\n", gsub("Occurrence.", "", colnames(data.inv)[cind.rem]), "\n")
-    if(length(cind.rem) != 0){ 
-      data.inv <- data.inv[,-cind.rem] 
-    }
-    dim(data.inv)
-  }
-  
-  # Update prevalence dataframe with new list of taxa and number of samples
-  cind.taxa <- which(grepl("Occurrence.", colnames(data.inv))) # update list.taxa
-  list.taxa <- colnames(data.inv)[cind.taxa]
-  prev.inv <- prev.inv[which(prev.inv$Occurrence.taxa %in% list.taxa),]
-  for (j in list.taxa) { 
-    prev <- sum(data.inv[,j]) / dim(data.inv)[1]
-    prev.inv[which(prev.inv$Occurrence.taxa == j), "Prevalence"] <- prev
-  }
-  prev.inv[which(grepl("Occurrence.group", prev.inv$Occurrence.taxa)), "Taxonomic.level"] <- "group"
-  
-  # Reorder taxa by prevalence
-  list.taxa <- list.taxa[order(match(list.taxa, prev.inv$Occurrence.taxa))]
-  
-  # Add other temperatures to env fact list
-  all.temp <- colnames(data.env)[which(grepl("temperature.lm", colnames(data.env)))]
-  env.fact.full2 <- c(env.fact.full, all.temp)
-  
-  # Merge data sets
-  data <- data.env[, c("SiteId", "SampId", "X", "Y", vect.info, env.fact.full2)] %>%
-    right_join(data.inv[, c(which(colnames(data.inv) %in% c("SiteId", "SampId", list.taxa)))], by = c("SiteId", "SampId"))
-  # Reorder taxa columns by prevalence
-  data <- data[,c(which(!(colnames(data) %in% list.taxa)), match(list.taxa, colnames(data)))]
-  dim(data)
-  
-  suppressWarnings(
-  if(!is.na(taxa.ibch)){
-  
-    # Analyze which taxa needed to calculate the IBCH index
-    # Clean taxa names in our list
-    temp.list.taxa <- gsub("Occurrence.", "", list.taxa)
-    temp.list.taxa <- gsub("group.", "", temp.list.taxa)
-    temp.list.taxa <- sort(temp.list.taxa)
-    
-    # Clean taxa names in IBCH list
-    list.taxa.ibch <- taxa.ibch[,which(grepl("IBCH_2019", colnames(taxa.ibch)))]
-    list.taxa.ibch <- gsub("Tachet", "", list.taxa.ibch)
-    list.taxa.ibch <- gsub(" ", "", list.taxa.ibch)
-    list.taxa.ibch <- unlist(sapply(list.taxa.ibch, FUN = strsplit, split = "[^[:alnum:]]", USE.NAMES = F)) # split taxa name with "\"
-    list.taxa.ibch <- tolower(list.taxa.ibch) # all character to lower cap
-    list.taxa.ibch <- sapply(list.taxa.ibch, FUN =  Cap, USE.NAMES = F) # capitalize first letter
-    list.taxa.ibch <- sort(list.taxa.ibch)
-    
-    ind <- which(list.taxa.ibch %in% temp.list.taxa)
-    ind2 <- which(temp.list.taxa %in% list.taxa.ibch)
-    cat("\nFollowing", length(ind), "taxa needed for IBCH are present in our dataset:\n",
-        list.taxa.ibch[ind],
-        "\n\nFollowing", length(list.taxa.ibch) - length(ind),"taxa needed for IBCH are missing in our dataset:\n",
-        list.taxa.ibch[-ind],
-        "\n\nFollowing", length(temp.list.taxa) - length(ind2), "taxa not needed for IBCH are present in our dataset:\n",
-        temp.list.taxa[-ind2], "\n"
-    )
-  }
-  )
-  
-  # Print information
-  cat("\nSummary information of final datasets after preprocessing:\n",
-      length(unique(data$SampId)), "samples,\n",
-      length(unique(data$SiteId)), "sites,\n",
-      length(list.taxa), "taxa", ifelse(remove.na.taxa, "(without missing values)",""), "with prevalence between", 
-      100*prev.restrict, "% and", 
-      100 - 100*prev.restrict, ", with taxonomic level:\n")
-  print(summary(as.factor(prev.inv[which(prev.inv$Occurrence.taxa %in% list.taxa), "Taxonomic.level"])))
-  
-  preprocessed.data <- list("data" = data, "list.taxa" = list.taxa, "prev.inv" = prev.inv)
-  
-  return(preprocessed.data)
-}
-
+# Split data for CV and ODG
 split.data <- function(data, list.taxa, dir.workspace, info.file.name.data, select.temp, CV, ODG, ODG.info = c(), bottom = T){
   
     info.file.name <- paste0(info.file.name.data, "_",
@@ -219,7 +92,8 @@ split.data <- function(data, list.taxa, dir.workspace, info.file.name.data, sele
     }
     return(splits)
 }
-    
+
+# Standardize input environmental factors    
 standardize.data <- function(data, splits, env.fact.full, dl, CV, ODG){
   
   # Add other temperatures to env fact list
@@ -361,10 +235,6 @@ apply.null.model <- function(data, list.taxa){
 ## ---- Process output from stat models to fit structure of ml models (makes plotting easier)
 transfrom.stat.outputs <- function(stat.outputs, list.taxa, CV, ODG){
     # CV = F
-    # stat.outputs = stat.outputs
-    
-    # stat.output.list <- vector(mode = "list", length = length(stat.outputs))
-    
     if ( !CV & !ODG ){ # Model performance (FIT)
         stat.fit.res <- lapply(stat.outputs, function(models){
           #models <- stat.outputs[[1]]
@@ -440,8 +310,6 @@ transfrom.stat.outputs <- function(stat.outputs, list.taxa, CV, ODG){
                                               "Performance testing set" = dev.temp.test$Performance.test
                                               )
                 
-                
-                
                 }
                 names(temp.list.st.dev) <-  list.taxa
                 return(temp.list.st.dev)})
@@ -476,57 +344,58 @@ pred.stat.models <- function(res.extracted, matrix.predictors){
   
 }
 
-make.final.outputs.cv <- function(outputs.cv, list.models, list.taxa){
-    
-    outputs <- vector(mode = "list", length = length(list.models))
-    names(outputs) <- list.models
-    
-    out <- c("Observation", #1
-             "Prediction factors", #2 
-             "Prediction probabilities", #3 
-             "Likelihood", #4
-             "Performance", #5
-             "Performance splits") #6
-    output.names <- paste(out, "testing set")
-    
-    for (l in list.models){
-        
-        temp.list.taxa <- vector(mode = "list", length = length(list.taxa))
-        names(temp.list.taxa) <- list.taxa
+# make.final.outputs.cv <- function(outputs.cv, list.models, list.taxa){
+#     
+#     outputs <- vector(mode = "list", length = length(list.models))
+#     names(outputs) <- list.models
+#     
+#     out <- c("Observation", #1
+#              "Prediction factors", #2 
+#              "Prediction probabilities", #3 
+#              "Likelihood", #4
+#              "Performance", #5
+#              "Performance splits") #6
+#     output.names <- paste(out, "testing set")
+#     
+#     for (l in list.models){
+#         
+#         temp.list.taxa <- vector(mode = "list", length = length(list.taxa))
+#         names(temp.list.taxa) <- list.taxa
+# 
+#         for(j in list.taxa){
+#             
+#             temp.output <- vector(mode = "list", length = length(output.names))
+#             names(temp.output) <- output.names
+#             
+#             for (m in output.names[3]) {
+#                 temp.output[[m]] <- bind_rows(outputs.cv[[1]][[l]][[j]][[m]],
+#                                               outputs.cv[[2]][[l]][[j]][[m]],
+#                                               outputs.cv[[3]][[l]][[j]][[m]], .id = "Split")
+#             }
+#             for (m in output.names[c(2,4)]) {
+#                 temp.output[[m]] <- c(outputs.cv[[1]][[l]][[j]][[m]],
+#                                       outputs.cv[[2]][[l]][[j]][[m]],
+#                                       outputs.cv[[3]][[l]][[j]][[m]])
+#             }
+#             
+#             temp.vect <- vector(mode ="numeric", length = length(outputs.cv)) 
+#             names(temp.vect) <- names(outputs.cv)
+#             for (n in 1:length(outputs.cv)) {
+#                 #n = 1
+#                 perf <- outputs.cv[[n]][[l]][[j]][["Performance testing set"]]
+#                 temp.vect[n] <- ifelse(is.numeric(perf), perf, NA)
+#             }
+#             temp.output[[5]] <- mean(temp.vect, na.rm = T)
+#             temp.output[[6]] <- temp.vect
+#             
+#             temp.list.taxa[[j]] <- temp.output
+#         }
+#         outputs[[l]] <- temp.list.taxa
+#     }
+#     return(outputs)
+# }
 
-        for(j in list.taxa){
-            
-            temp.output <- vector(mode = "list", length = length(output.names))
-            names(temp.output) <- output.names
-            
-            for (m in output.names[3]) {
-                temp.output[[m]] <- bind_rows(outputs.cv[[1]][[l]][[j]][[m]],
-                                              outputs.cv[[2]][[l]][[j]][[m]],
-                                              outputs.cv[[3]][[l]][[j]][[m]], .id = "Split")
-            }
-            for (m in output.names[c(2,4)]) {
-                temp.output[[m]] <- c(outputs.cv[[1]][[l]][[j]][[m]],
-                                      outputs.cv[[2]][[l]][[j]][[m]],
-                                      outputs.cv[[3]][[l]][[j]][[m]])
-            }
-            
-            temp.vect <- vector(mode ="numeric", length = length(outputs.cv)) 
-            names(temp.vect) <- names(outputs.cv)
-            for (n in 1:length(outputs.cv)) {
-                #n = 1
-                perf <- outputs.cv[[n]][[l]][[j]][["Performance testing set"]]
-                temp.vect[n] <- ifelse(is.numeric(perf), perf, NA)
-            }
-            temp.output[[5]] <- mean(temp.vect, na.rm = T)
-            temp.output[[6]] <- temp.vect
-            
-            temp.list.taxa[[j]] <- temp.output
-        }
-        outputs[[l]] <- temp.list.taxa
-    }
-    return(outputs)
-}
-
+# Make dataframe with models outputs
 make.df.outputs <- function(outputs, list.models, list.taxa, 
                             list.splits = c("Split1", "Split2", "Split3"), null.model, prev.inv, CV, ODG){
     
@@ -716,6 +585,7 @@ make.df.outputs <- function(outputs, list.models, list.taxa,
     return(result)
 }
 
+# Make dataframe of models results for plotting
 perf.plot.data <- function(list.df.perf){
   
   names.appcase <- names(list.df.perf)
@@ -775,6 +645,7 @@ perf.plot.data <- function(list.df.perf){
   return(plot.data)
 }
 
+# Table 3: Summary statitistics likelihood ratio ####
 table.likelihood.ratio <- function(list.df.perf, list.models, models.analysis){
   
   # [min, mean, median, max]x[list.models]
@@ -798,273 +669,3 @@ table.likelihood.ratio <- function(list.df.perf, list.models, models.analysis){
   }
   return(df.likeli.ratio)
 }
-
-make.table <- function(df.pred.perf, df.fit.perf, list.models){
-  list.models <- append(list.models, "Null_model")
-  names(list.models) <- c()
-
-  # calculate mean standardized deviance for the training set (i.e. quality of fit)
-  table.fit.mean <- apply(df.fit.perf[list.models],2, FUN = mean)
-  table.fit.mean <-t(table.fit.mean)
-  table.fit.mean <- as.data.frame(table.fit.mean)
-  rownames(table.fit.mean) <- "Mean std. dev. during training"
-  
-  # calculate corresponding standart deviation
-  table.fit.sd <- apply(df.fit.perf[list.models],2, FUN = sd)
-  table.fit.sd <-t(table.fit.sd)
-  table.fit.sd <- as.data.frame(table.fit.sd)
-  rownames(table.fit.sd) <- "SD std. dev. during training"
-  
-  # calculate mean standardized deviance for the testing set (i.e. quality of fit)
-  table.pred.mean <- apply(df.pred.perf[list.models],2, FUN = mean)
-  table.pred.mean <-t(table.pred.mean)
-  table.pred.mean <- as.data.frame(table.pred.mean)
-  rownames(table.pred.mean) <- "Mean std. dev. during testing"
-  
-  # calculate corresponding standart deviation
-  table.pred.sd <- apply(df.pred.perf[list.models],2, FUN = sd)
-  table.pred.sd <-t(table.pred.sd)
-  table.pred.sd <- as.data.frame(table.pred.sd)
-  rownames(table.pred.sd) <- "SD std. dev. during testing"
-  
-  # calculate mean standardized deviance for the testing set (i.e. predictive perfomance)
-  names.expl.pow <- paste("expl.pow_", list.models, sep="")
-  
-  table.mean.exp <- apply(df.pred.perf[names.expl.pow],2, FUN = mean)
-  table.mean.exp <-t(table.mean.exp)
-  table.mean.exp <- as.data.frame(table.mean.exp)
-  colnames(table.mean.exp) <- list.models
-  rownames(table.mean.exp) <- "Mean expl. power"
-  
-  # calculate corresponding standart deviation
-  table.sd.exp <- apply(df.pred.perf[names.expl.pow],2, FUN = sd)
-  table.sd.exp <-t(table.sd.exp)
-  table.sd.exp <- as.data.frame(table.sd.exp)
-  colnames(table.sd.exp) <- list.models
-  rownames(table.sd.exp) <- "SD expl. power"
-  
-  # add performance ratio
-  perf.ratio <- (table.pred.mean/table.pred.sd) * table.pred.mean
-  rownames(perf.ratio) <- "performance ratio"
-  
-  # row bind results
-  table <- rbind(table.fit.mean, table.fit.sd, table.pred.mean, table.pred.sd, table.mean.exp, table.sd.exp, perf.ratio)
-  
-  tab1 <- table %>% gt(rownames_to_stub = T) %>% tab_header(
-    title = md("**Mean predictive performance across models**") # make bold title
-  ) %>%
-    fmt_number(
-      columns = list.models, # round numbers
-      decimals = 2
-    ) %>% # remove uneccessary black lines
-    tab_options(
-      table.border.top.color = "white",
-      heading.border.bottom.color = "black",
-      row_group.border.top.color = "black",
-      row_group.border.bottom.color = "white",
-      #stub.border.color = "transparent",
-      table.border.bottom.color = "white",
-      column_labels.border.top.color = "black",
-      column_labels.border.bottom.color = "black",
-      table_body.border.bottom.color = "black",
-      table_body.hlines.color = "white")
-  return(tab1)
-}
-    
-make.table.species <- function(df.merged.perf, list.models){
-  
-  names(list.models) <- c()
-  
-  common.vect <- c("Taxa", "Prevalence", "Null_model")
-  expl.pow.vect.pred <- paste("expl.pow_", list.models, ".pred", sep="")
-  expl.pow.vect.fit <- paste("expl.pow_", list.models, ".fit", sep="")
-  likeli.ratio.vect <- colnames(df.merged.perf)[which(grepl("likelihood.ratio", colnames(df.merged.perf)))]
-  
-  # Make tables
-  tmp.table <- df.merged.perf
-  tmp.table$Taxa <- sub("Occurrence.", "", tmp.table$Taxa)
-  # colnames(tmp.table) <- c("Taxa", "Prevalence", list.models)
-  #tmp.table <- tmp.table %>% mutate((across(is.numeric, round, digits=3)))
-  tab2 <- tmp.table %>% gt() %>%
-    tab_header(
-      title = md("**Different performance accross models**") # make bold title
-    ) %>%
-    tab_spanner(
-      label = "Training",
-      columns = paste0(list.models, ".fit")
-    ) # %>%
-    
-    fit.vect <- list.models
-    names(fit.vect) <- paste0(list.models, ".fit")
-      
-    tab2 <- tab2 %>% cols_label(
-      .list = fit.vect
-    ) %>%
-    tab_spanner(
-      label = "Testing",
-      columns = paste0(list.models, ".pred")
-    ) %>%
-    tab_spanner(
-      label = "Explanatory power for prediction",
-      columns = all_of(expl.pow.vect.pred)
-    ) %>%
-    tab_spanner(
-      label = "Explanatory power during training",
-      columns = all_of(expl.pow.vect.fit)
-    ) %>%
-    tab_spanner(
-      label = "Likelihood ratio",
-      columns = all_of(likeli.ratio.vect)
-    ) %>%
-    tab_spanner(
-      label = "Biggest expl. pow. difference",
-      columns = c(Big.model.diff, Big.pred.expl.pow.diff, chGLM.model.diff, chGLM.pred.expl.pow.diff)
-    ) %>%
-    fmt_number(
-      columns = c("Prevalence", colnames(tmp.table)[-which(colnames(tmp.table) %in% c("Taxa", "Taxonomic level", "Big.model.diff", "chGLM.model.diff"))]), # round numbers
-      decimals = 2
-    ) %>% # remove uneccessary black lines
-    tab_options(
-      table.border.top.color = "white",
-      heading.border.bottom.color = "black",
-      row_group.border.top.color = "black",
-      row_group.border.bottom.color = "white",
-      #stub.border.color = "transparent",
-      table.border.bottom.color = "white",
-      column_labels.border.top.color = "black",
-      column_labels.border.bottom.color = "black",
-      table_body.border.bottom.color = "black",
-      table_body.hlines.color = "white")
-  
-  return(tab2)
-}
-
-make.table.species.rearranged <- function(df.merged.perf, list.models){
-  
-  names(list.models) <- c()
-  no.models <- length(list.models)
-  
-  # Make tables
-  # tmp.table <- df.merged.perf[,-which(grepl("expl.pow",colnames(df.merged.perf)) & grepl(".fit",colnames(df.merged.perf)))]
-  tmp.table <- df.merged.perf[,c(1, 2, which((grepl("expl.pow_",colnames(df.merged.perf)) & grepl(".pred",colnames(df.merged.perf))) | grepl("likelihood",colnames(df.merged.perf)))) ]
-  
-  tmp.table$Taxa <- sub("Occurrence.", "", tmp.table$Taxa)
-  # colnames(tmp.table) <- c("Taxa", "Prevalence", list.models)
-  #tmp.table <- tmp.table %>% mutate((across(is.numeric, round, digits=3)))
-  
-  tab3 <- tmp.table %>% gt() %>%
-    tab_header(
-      title = md("**Different performance accross models**")) # make bold title
-    # ) %>%
-    # cols_label(
-    #   Null_model = "Null model",
-    #   Big.model.diff = "Models",
-    #   Big.pred.expl.pow.diff = "Value"
-    # ) %>%
-    # tab_spanner(
-    #   label = "Biggest expl. pow. difference in pred. ",
-    #   columns = c(Big.model.diff, Big.pred.expl.pow.diff, chGLM.model.diff, chGLM.pred.expl.pow.diff)
-    # )
-  for (l in 0:(no.models-1)) {
-    col.group <- colnames(tmp.table)[which(grepl(list.models[no.models-l], colnames(tmp.table)) & !grepl("diff", colnames(tmp.table)) )]
-    col.names <- c("Expl. pow.", "Likelihood ratio")
-    names(col.names) <- col.group
-    
-    tab3 <- tab3 %>%
-      cols_move(
-        columns = all_of(col.group),
-        after = "Prevalence"
-        ) %>%
-      tab_spanner(
-        label = list.models[no.models-l],
-        columns = all_of(col.group)
-      ) %>%
-      cols_label( .list = col.names
-      )
-  }
-  
-  tab3 <- tab3 %>%
-    fmt_number(
-      columns = c("Prevalence", colnames(tmp.table)[-which(colnames(tmp.table) %in% c("Taxa", "Taxonomic level", "Big.model.diff", "chGLM.model.diff"))]), # round numbers
-      decimals = 2
-    ) %>% # remove uneccessary black lines
-    tab_options(
-      table.border.top.color = "white",
-      heading.border.bottom.color = "black",
-      row_group.border.top.color = "black",
-      row_group.border.bottom.color = "white",
-      #stub.border.color = "transparent",
-      table.border.bottom.color = "white",
-      column_labels.border.top.color = "black",
-      column_labels.border.bottom.color = "black",
-      table_body.border.bottom.color = "black",
-      table_body.hlines.color = "white")
-  
-  return(tab3)
-}
-
-make.table.species.rearranged.order <- function(df.merged.perf, list.models){
-  
-  names(list.models) <- c()
-  no.models <- length(list.models)
-  
-  # Make tables
-  tmp.table <- df.merged.perf[,-which(grepl("expl.pow",colnames(df.merged.perf)) & grepl(".fit",colnames(df.merged.perf)))]
-  
-  tmp.table$Taxa <- sub("Occurrence.", "", tmp.table$Taxa)
-  tmp.table  <- arrange(tmp.table, desc(chGLM.pred.expl.pow.diff))
-  
-  tab3 <- tmp.table %>% gt() %>%
-    tab_header(
-      title = md("**Different performance accross models**") # make bold title
-    ) %>%
-    cols_label(
-      Null_model = "Null model",
-      Big.model.diff = "Models",
-      Big.pred.expl.pow.diff = "Value"
-    ) %>%
-    tab_spanner(
-      label = "Biggest expl. pow. difference in pred.",
-      columns = c(Big.model.diff, Big.pred.expl.pow.diff, chGLM.model.diff, chGLM.pred.expl.pow.diff)
-    )
-  for (l in 0:(no.models-1)) {
-    col.group <- colnames(tmp.table)[which(grepl(list.models[no.models-l], colnames(tmp.table)) & !grepl("diff", colnames(tmp.table)))]
-    col.names <- c("Fit", "Prediction", "Expl. pow.", "Likelihood ratio")
-    names(col.names) <- col.group
-    
-    tab3 <- tab3 %>%
-      cols_move(
-        columns = all_of(col.group),
-        after = "Null_model"
-      ) %>%
-      tab_spanner(
-        label = list.models[no.models-l],
-        columns = all_of(col.group)
-      ) %>%
-      cols_label( .list = col.names
-      )
-  }
-  
-  tab3 <- tab3 %>%
-    fmt_number(
-      columns = c("Prevalence", colnames(tmp.table)[-which(colnames(tmp.table) %in% c("Taxa", "Taxonomic level", "Big.model.diff", "chGLM.model.diff"))]), # round numbers
-      decimals = 2
-    ) %>% # remove uneccessary black lines
-    tab_options(
-      table.border.top.color = "white",
-      heading.border.bottom.color = "black",
-      row_group.border.top.color = "black",
-      row_group.border.bottom.color = "white",
-      #stub.border.color = "transparent",
-      table.border.bottom.color = "white",
-      column_labels.border.top.color = "black",
-      column_labels.border.bottom.color = "black",
-      table_body.border.bottom.color = "black",
-      table_body.hlines.color = "white")
-  
-  return(tab3)
-}
-
-
-
-

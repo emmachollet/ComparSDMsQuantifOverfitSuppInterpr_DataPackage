@@ -26,7 +26,7 @@ file.prefix <- ifelse(BDM, "BDM_", "All_")
 
 CV <- F              # train for cross-validation (CV)
 ODG <- ifelse(CV, F, # if CV = T, no out-of-domain generalization (ODG)
-                  T  # train for out-of-domain generalization (ODG)
+                  F  # train for out-of-domain generalization (ODG)
                   )  # if CV = F and ODG = F, train on whole dataset (FIT)
 
 ODG.info <- c(training.ratio = 0.8,     # ratio of data used for calibration in ODG
@@ -875,74 +875,74 @@ list.glm <- list.models[1:3]
 
 if(CV){
   list.plots <- plot.glm.param(outputs.cv, df.perf, list.glm, list.taxa, env.fact.full, CV)
-} else {
+} else if(!ODG) {
   list.plots <- plot.glm.param(outputs, df.perf, list.glm, list.taxa, env.fact.full, CV)
 }
 
-file.name <- "GLMParametersComparison"
-cat(file.name)
-print.pdf.plots(list.plots = list.plots, width = 8.4, height = 11.88, # A4 proportions  
-                dir.output = dir.plots.output, info.file.name = info.file.name, file.name = file.name, png = TRUE, png.vertical = TRUE)
-
+if(CV | !ODG){
+  file.name <- "GLMParametersComparison"
+  cat(file.name)
+  print.pdf.plots(list.plots = list.plots, width = 8.4, height = 11.88, # A4 proportions  
+                  dir.output = dir.plots.output, info.file.name = info.file.name, file.name = file.name, png = TRUE, png.vertical = TRUE)
+}
 
 # Plots specifically related to trained models (and not to CV)
 
 # If CV or ODG, take just the first split for trained models analysis
 # Doesn't work for CV for now
-if(CV | ODG){
+if(!CV | ODG){
   outputs <- outputs.cv[[1]]
   normalization.data.cv <- normalization.data
-  ref.data <- standardized.data[[1]][[1]]
-} else {
-  ref.data <- standardized.data[[1]]
 }
 
-if(plot.all.ICE == T){ # to produce all ICE/PDP provided in manuscript and Supp. Inf.
-  temp.select.taxa <- list(select.taxa, list.taxa[which(list.taxa != "Occurrence.Perlodidae")])
-  temp.select.env.fact <- list(env.fact, env.fact[1])
-} else { # 
-  temp.select.taxa <- list(select.taxa[1], select.taxa[1])
-  temp.select.env.fact <- list(env.fact[1], env.fact[2])
-}
-
-for (n in 1:length(temp.select.taxa)) {
-  
-  subselect.taxa <- temp.select.taxa[[n]]
-  select.env.fact <- temp.select.env.fact[[n]]
-  
-  ## ICE/PDP ####
-  
-  no.samples <- 100
-  no.steps <- 200
-  subselect <- 1
-  
-  list.list.plots <- lapply(subselect.taxa, FUN= plot.ice.per.taxa, outputs = outputs, ref.data = ref.data, 
-                            list.models = list.models, list.taxa = list.taxa,
-                            env.fact = env.fact, select.env.fact = select.env.fact,
-                            normalization.data = normalization.data, ODG = ODG, 
-                            no.samples = no.samples, no.steps = no.steps, subselect = subselect)
-  
-  for (j in 1:length(subselect.taxa)) {
-    taxon <- sub("Occurrence.", "", subselect.taxa[j])
-    file.name <- paste0("ICE_", no.samples, "samp_", taxon, "_", length(select.env.fact), "envfact")
-    print.pdf.plots(list.plots = list.list.plots[[j]], width = 8, height = 12, 
-                    dir.output = paste0(dir.plots.output, "ICE/"), 
-                    info.file.name = info.file.name, file.name = file.name) #,
-                    # png = T, png.vertical = T, png.ratio = 0.7)
-  }
-
-  ## Response shape ####
-  
-  list.list.plots <- lapply(subselect.taxa, FUN = plot.rs.taxa, outputs = outputs, list.models = list.models, 
-                            normalization.data = normalization.data, env.fact = env.fact, CV = CV, ODG = ODG)
-  
-  
-  for (j in 1:length(subselect.taxa)) {
-    taxon <- sub("Occurrence.", "", subselect.taxa[j])
-    file.name <- paste0("RS_", taxon)
-    print.pdf.plots(list.plots = list.list.plots[[j]], width = 8, height = 12,
-                    dir.output = paste0(dir.plots.output, "ICE/"),
-                    info.file.name = info.file.name, file.name = file.name)
+if(!CV){
+  if(plot.all.ICE == T){ # to produce all ICE/PDP provided in manuscript and Supp. Inf.
+    temp.select.taxa <- list(select.taxa, list.taxa[which(list.taxa != "Occurrence.Perlodidae")])
+    temp.select.env.fact <- list(env.fact, env.fact[1])
+  } else { # 
+    temp.select.taxa <- list(select.taxa[1], select.taxa[2])
+    temp.select.env.fact <- list(env.fact[1], env.fact[2])
   }
   
+  for (n in 1:length(temp.select.taxa)) {
+    
+    subselect.taxa <- temp.select.taxa[[n]]
+    select.env.fact <- temp.select.env.fact[[n]]
+    
+    ## ICE/PDP ####
+    
+    no.samples <- 100
+    no.steps <- 200
+    subselect <- 1
+    
+    list.list.plots <- lapply(subselect.taxa, FUN= plot.ice.per.taxa, outputs = outputs, ref.data = standardized.data[[1]], 
+                              list.models = list.models, list.taxa = list.taxa,
+                              env.fact = env.fact, select.env.fact = select.env.fact,
+                              normalization.data = normalization.data, ODG = ODG, 
+                              no.samples = no.samples, no.steps = no.steps, subselect = subselect)
+    
+    for (j in 1:length(subselect.taxa)) {
+      taxon <- sub("Occurrence.", "", subselect.taxa[j])
+      file.name <- paste0("ICE_", no.samples, "samp_", taxon, "_", length(select.env.fact), "envfact")
+      print.pdf.plots(list.plots = list.list.plots[[j]], width = 8.3, height = 11.7, # A4 format in inches 
+                      dir.output = paste0(dir.plots.output, "ICE/"), 
+                      info.file.name = info.file.name, file.name = file.name) #,
+                      # png = T, png.vertical = T, png.ratio = 0.7)
+    }
+  
+    ## Response shape ####
+    
+    list.list.plots <- lapply(subselect.taxa, FUN = plot.rs.taxa, outputs = outputs, list.models = list.models, 
+                              normalization.data = normalization.data, env.fact = env.fact, CV = CV, ODG = ODG)
+    
+    
+    for (j in 1:length(subselect.taxa)) {
+      taxon <- sub("Occurrence.", "", subselect.taxa[j])
+      file.name <- paste0("RS_", taxon)
+      print.pdf.plots(list.plots = list.list.plots[[j]], width = 8.3, height = 11.7, # A4 format in inches
+                      dir.output = paste0(dir.plots.output, "ICE/"),
+                      info.file.name = info.file.name, file.name = file.name)
+    }
+    
+  }
 }

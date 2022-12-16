@@ -51,9 +51,6 @@ stat_mod_cv <- function (data.splits, CV, ODG, model.name, comm.corr, stat.itera
   output <- list("deviance" = tibble(), "probability" = tibble(), "parameters" = tibble()) #this is where the data is gathered in the end for the return
   training.data <- data.splits[[1]]
   
-  # inv.names <- colnames(select(training.data, SiteId, SampId, contains("Occurrence.")))
-  # env.names <- colnames(select(training.data, colnames(training.data), -contains("Occurrence.")))
-  
   env.cond <- training.data[,c("SiteId", "SampId", env.fact.full)]
   occur.taxa <- training.data[,list.taxa]
 
@@ -340,35 +337,6 @@ stat_mod_cv <- function (data.splits, CV, ODG, model.name, comm.corr, stat.itera
   p.maxpost <- pred.stat.models(res.extracted = res.extracted, matrix.predictors = x) # function defined in utilities.r
   colnames(p.maxpost) <- list.taxa
   
-  # # Name dimensions of parameters within stanfit object
-  # colnames(res.extracted[["alpha_taxa"]]) <- list.taxa
-  # colnames(res.extracted[["mu_beta_comm"]]) <- env.fact.full
-  # colnames(res.extracted[["sigma_beta_comm"]]) <- env.fact.full
-  # 
-  # # Extract inputs (x), observations (y), and parameters at maximum posterior
-  # x <- as.matrix(env.cond[,env.fact.full])
-  # colnames(x) <- env.fact.full
-  # y <- as.matrix(occur.taxa)
-  # ind.maxpost <- which.max(res.extracted[["lp__"]])
-  # mu.alpha.comm.maxpost <- res.extracted[["mu_alpha_comm"]][ind.maxpost]
-  # sigma.alpha.comm.maxpost <- res.extracted[["sigma_alpha_comm"]][ind.maxpost]
-  # mu.beta.comm.maxpost  <- res.extracted[["mu_beta_comm"]][ind.maxpost,]
-  # sigma.beta.comm.maxpost  <- res.extracted[["sigma_beta_comm"]][ind.maxpost,]
-  # alpha.taxa.maxpost <- res.extracted[["alpha_taxa"]][ind.maxpost,]
-  # beta.taxa.maxpost  <- res.extracted[["beta_taxa"]][ind.maxpost,,]
-  # 
-  # # Name dimensions of maximum posterior community parameters
-  # names(mu.beta.comm.maxpost) <- env.fact.full
-  # names(sigma.beta.comm.maxpost) <- env.fact.full
-  # rownames(beta.taxa.maxpost) <- env.fact.full
-  # 
-  # ### Calibration results
-  # # Check if site effects AND latent variables are disabled
-  # z <- matrix(rep(alpha.taxa.maxpost,nrow(x)),nrow=nrow(x),byrow=TRUE) + 
-  #     x%*%beta.taxa.maxpost
-  # 
-  # p.maxpost <- 1/(1+exp(-z))
-  
   if (CV | ODG){
       train.y <- occur.taxa
       train.n.present <- apply(train.y, 2, sum, na.rm = TRUE)
@@ -508,11 +476,6 @@ stat_mod_cv <- function (data.splits, CV, ODG, model.name, comm.corr, stat.itera
       return(list(res,output))
       
   } else {
-    # # Prepare tidy data from maximum posterior beta_taxa
-    # beta <- t(beta.taxa.maxpost)
-    # beta <- as_tibble(beta, stringsAsFactors = F)
-    # beta$Taxon <- list.taxa
-    # beta <- gather(beta, Variable, Parameter, -Taxon)
     
     p.primitive <- apply(y, 2, function(j){sum(j, na.rm=TRUE)/sum(!is.na(j))})
     p.primitive <- ifelse(p.primitive==0,1e-4,p.primitive)
@@ -558,14 +521,13 @@ stat_mod_cv <- function (data.splits, CV, ODG, model.name, comm.corr, stat.itera
     ### Prepare output
     probability$Model <- model.name
     deviance$Model <- model.name
-    # beta$Model <- model.name
-    
+
     output$deviance <- bind_rows(output$deviance, deviance)
     output$deviance.residual   <- deviance.maxpost
     output$deviance.null <- deviance.primitive
     
     output$probability <- bind_rows(output$probability, probability)
-    # output$parameters <- bind_rows(output$parameters, beta) #not quite sure about beta here
+    
     # Store the site, samples, community, and input data
     output$sites <- sites
     output$samples <- samples
@@ -573,31 +535,6 @@ stat_mod_cv <- function (data.splits, CV, ODG, model.name, comm.corr, stat.itera
     output$env.fact.full <- env.fact.full
     output$env.cond <- env.cond
 
-    # # Store priors for community parameters
-    # output$mu.alpha.comm.pripar <- data$mu_alpha_comm_pripar
-    # output$sigma.alpha.comm.pripar <- data$sigma_alpha_comm_pripar
-    # output$mu.beta.comm.pripar <- data$mu_beta_comm_pripar
-    # output$sigma.beta.comm.pripar <- data$sigma_beta_comm_pripar
-    # 
-    # # Store community parameters
-    # output$mu.alpha.comm <- res.extracted[["mu_alpha_comm"]]
-    # output$mu.alpha.comm.maxpost <- mu.alpha.comm.maxpost
-    # 
-    # output$sigma.alpha.comm <- res.extracted[["sigma_alpha_comm"]]
-    # output$sigma.alpha.comm.maxpost <- sigma.alpha.comm.maxpost
-    # 
-    # output$mu.beta.comm <- res.extracted[["mu_beta_comm"]]
-    # output$mu.beta.comm.maxpost <- mu.beta.comm.maxpost
-    # 
-    # output$sigma.beta.comm <- res.extracted[["sigma_beta_comm"]]
-    # output$sigma.beta.comm.maxpost <- sigma.beta.comm.maxpost
-    # 
-    # # Store posterior taxon-specific parameters
-    # output$alpha.taxa <- res.extracted[["alpha_taxa"]]
-    # output$alpha.taxa.maxpost <- alpha.taxa.maxpost
-    # 
-    # output$beta.taxa  <- res.extracted[["beta_taxa"]]
-    # output$beta.taxa.maxpost <- beta.taxa.maxpost
     return(list(res,output))        
   }
 }
