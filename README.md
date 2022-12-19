@@ -1,9 +1,11 @@
 # A comparison of machine learning and statistical species distribution models applied to freshwater macroinvertebrates in Swiss rivers
 
 **Background**
+
 This data package provides the data, scripts and plots needed to produce the results of the manuscript *"A comparison of machine learning and statistical species distribution models: when overfitting hurts interpretation"* (submitted to *Ecological Modelling*, Dec 2022).
 
 **Overview**
+
 In this study, we apply eight statistical and machine learning models with different complexity to predict the probability of occurrence of freshwater macroinvertabrates in Swiss rivers using nine environmental factors as explanatory variables. We compare the models in terms of predictive performance, overfitting degree and inferred response shape, during cross-validation (CV) and for out-of-domain generalization (ODG, also called "extrapolation"). 
 
 *Authors:* Emma Chollet Ramampiandra (ECR), Andreas Scheidegger (AS), Jonas Wydler (JW), Nele Schuwirth (NS)
