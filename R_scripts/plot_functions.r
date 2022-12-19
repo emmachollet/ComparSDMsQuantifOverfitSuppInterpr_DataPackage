@@ -618,7 +618,7 @@ plot.ice.per.taxa <- function(taxon, outputs, ref.data, list.models, list.taxa, 
     plot.data.rug <- data.frame()
     
     for(l in list.models){
-      # l <- list.models[1]
+      # l <- list.models[8]
       cat("\nfor model", l)
       
       # Extract trained model
@@ -852,7 +852,11 @@ plot.rs.taxa <- function(taxa, outputs, list.models, normalization.data, env.fac
     # k <- env.fact[1]
     env.ind <- which(env.fact == k)
     plot.data <- filter(plot.data0, factor == k)
-    plot.data$set <- as.factor(plot.data$set)
+    if(ODG){
+      plot.data$set <- as.factor(plot.data$set)
+    } else {
+      plot.data$set <- as.factor("Calibration")
+    }
     
     plot.data <- plot.data %>%
       mutate(across(.cols = c(model, factor), levels=temp.list.models))
@@ -885,10 +889,6 @@ plot.rs.taxa <- function(taxa, outputs, list.models, normalization.data, env.fac
       x = k,
       y = "Predicted probability of occurrence",
       color = "Observation")
-    # g <- g + theme(strip.background = element_blank(),
-    #                strip.placement = "outside"# ,
-    #                # plot.title = element_text(size=10)
-    # )
     g <- g + ylim(0,1)
     g <- g + guides(colour = guide_legend(override.aes = list(size=6)))
     # g

@@ -1,7 +1,9 @@
 # A comparison of machine learning and statistical species distribution models applied to freshwater macroinvertebrates in Swiss rivers
 
+**Background**
 This data package provides the data, scripts and plots needed to produce the results of the manuscript *"A comparison of machine learning and statistical species distribution models: when overfitting hurts interpretation"* (submitted to *Ecological Modelling*, Dec 2022).
 
+**Overview**
 In this study, we apply eight statistical and machine learning models with different complexity to predict the probability of occurrence of freshwater macroinvertabrates in Swiss rivers using nine environmental factors as explanatory variables. We compare the models in terms of predictive performance, overfitting degree and inferred response shape, during cross-validation (CV) and for out-of-domain generalization (ODG, also called "extrapolation"). 
 
 *Authors:* Emma Chollet Ramampiandra (ECR), Andreas Scheidegger (AS), Jonas Wydler (JW), Nele Schuwirth (NS)
@@ -20,7 +22,7 @@ The input data is already pre-processed (pre-processing information available up
 ## Models application and analysis
 
 **Main script** (Directory: *R_scripts*)
-- *main.r* : Set up options for all analysis (CV, ODG or FIT). Automatically instal all R packages in the right version using `checkpont`. Read in input data. Split the data and standardize the environmental factors. Define all models. Train all models. Save models outputs. Process all results and produce plots and tables.
+- *main.r* : Set up options for all analysis (CV, ODG or FIT). Automatically instal all R packages in the right version using `checkpoint` package. Read in input data. Split the data and standardize the environmental factors. Define all models. Train all models. Save models outputs. Process all results and produce plots and tables.
 
 **Utilities** (Directory: *R_scripts*)
 - *stat_model_functions.r* : Functions to run hierarchical statistical models (hGLM and chGLM) using `rstan` package.
