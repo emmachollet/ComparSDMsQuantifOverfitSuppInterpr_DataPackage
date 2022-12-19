@@ -24,9 +24,9 @@ graphics.off() # clean graphics display
 BDM <- F # select dataset, "All" or only "BDM" monitoring programs
 file.prefix <- ifelse(BDM, "BDM_", "All_")
 
-CV <- F              # train for cross-validation (CV)
+CV <- T              # train for cross-validation (CV)
 ODG <- ifelse(CV, F, # if CV = T, no out-of-domain generalization (ODG)
-                  T  # train for out-of-domain generalization (ODG)
+                  F  # train for out-of-domain generalization (ODG)
                   )  # if CV = F and ODG = F, train on whole dataset (FIT)
 
 ODG.info <- c(training.ratio = 0.8,     # ratio of data used for calibration in ODG
@@ -483,32 +483,27 @@ info.file.ann.name <-  paste0("ANN_models_",
 file.name <- paste0(dir.models.output, info.file.ann.name, ".rds")
 cat(file.name)
 
-# if(file.exists(file.name) & plot.all.ICE == F){
-#   cat("The file already exists. Reading it", file.name)
-#   if(CV | ODG){
-#     ann.outputs.cv <- readRDS(file = file.name)
-#   } else {
-#     ann.outputs <- readRDS(file = file.name)
-#   }
-# } else {
-  # cat("This ANN output doesn't exist yet, we produce it and save it in", file.name)
-  if(CV|ODG){
-    ann.outputs.cv <- lapply(standardized.data, function(split){
-      lapply(list.hyper.param, FUN = build_and_train_model, split = split,
-             env.fact = env.fact, list.taxa = list.taxa,
-             learning.rate = learning.rate, batch.size = batch.size,
-             CV = CV, ODG = ODG)
-    })
-    saveRDS(ann.outputs.cv, file = file.name)
+# Run ANN everytime to produce ICE plos
+cat("Run ANN and save output in", file.name)
+if(CV|ODG){
+  # ann.outputs.cv <- readRDS(file = file.name)
+  ann.outputs.cv <- lapply(standardized.data, function(split){
+    lapply(list.hyper.param, FUN = build_and_train_model, split = split,
+           env.fact = env.fact, list.taxa = list.taxa,
+           learning.rate = learning.rate, batch.size = batch.size,
+           CV = CV, ODG = ODG)
+  })
+  saveRDS(ann.outputs.cv, file = file.name)
 
-  } else {
-    ann.outputs <- lapply(list.hyper.param, FUN = build_and_train_model, split = standardized.data,
-                          env.fact = env.fact, list.taxa = list.taxa,
-                          learning.rate = learning.rate, batch.size = batch.size,
-                          CV = CV, ODG = ODG)
-    saveRDS(ann.outputs, file = file.name)
-  }
-# }
+} else {
+  # ann.outputs <- readRDS(file = file.name)
+  ann.outputs <- lapply(list.hyper.param, FUN = build_and_train_model, split = standardized.data,
+                        env.fact = env.fact, list.taxa = list.taxa,
+                        learning.rate = learning.rate, batch.size = batch.size,
+                        CV = CV, ODG = ODG)
+  saveRDS(ann.outputs, file = file.name)
+}
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

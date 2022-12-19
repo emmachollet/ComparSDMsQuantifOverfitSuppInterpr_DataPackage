@@ -17,7 +17,7 @@ In this study, we apply eight statistical and machine learning models with diffe
 
 The input data is already pre-processed (pre-processing information available upon request). 
 - The macroinvertebrate dataset comes from the MIDAT database, run by info fauna CSCF (Centre Suisse de Cartographie de la Faune) & karch. It consists of 2729 observations of the presence [1] and absence [0] of 60 taxa taken at 1802 different sites covering the whole of Switzerland.
-- The environmental dataset consists of nine environmental factors selected based on expert knowledge and previous studies (see Manuscript for more details). They are derived from the Swiss Federal Office for the Environment (water quality monitoring data, hydrological data, hydromorphological data, land use data), the Swiss Federal Office of Topography (topographical data), and the Swiss Federal Statistical Office (population statistics).
+- The environmental dataset consists of nine environmental factors selected and calculated based on expert knowledge and previous studies (see Manuscript for more details). They are derived from the Swiss Federal Office for the Environment (water quality monitoring data, hydrological data, hydromorphological data, land use data), the Swiss Federal Office of Topography (topographical data), and the Swiss Federal Statistical Office (population statistics).
 
 -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -35,11 +35,12 @@ The input data is already pre-processed (pre-processing information available up
 
 **Input data** (Directory: *Input_data*)
 - */Swiss.map.gdb/* * : GDB files for plotting rivers and lake on Swiss map.
-- *All_2729samples_9envfact_lme.area.elev_ModelInputs.csv* : Models input data (2729 observations of presence [1] and absence [0] of 60 taxa and nine environmental factors).
+- *All_2729samples_9envfact_lme.area.elev_ModelInputs.csv* : Models input data (2729 observations of presence [1] and absence [0] of 60 taxa and calculation of nine environmental factors).
 - *All_2729samples_9envfact_lme.area.elev_PrevalenceTaxa.csv* : Information on prevalence and taxonomic level of the 60 taxa.
 
 **Output data** (Directory: *Output_data*)
-- */Trained_models/* * : RDS files of trained models.
+
+- */Trained_models/* * : RDS files of trained models (too heavy to be loaded in the repository, can be reproduced or available upon request).
 - */Tables/* * : RDS files of splits used to train models druing CV and ODG. CSV of models results in tables.
 
 **Plots** (Directory: *Plots*)
@@ -52,4 +53,5 @@ The input data is already pre-processed (pre-processing information available up
 ## Additional information
 
 **Author contributions**
+
 NS initiated the study and acquired funding. ECR, NS and AS designed the study. ECR and JW implemented the models and carried out the simulations and visualization of the results. All authors contributed to the analysis of the results. ECR wrote the first draft of the paper and all authors contributed to writing and revisions.
