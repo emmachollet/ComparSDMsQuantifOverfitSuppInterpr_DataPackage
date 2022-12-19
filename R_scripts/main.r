@@ -24,7 +24,7 @@ graphics.off() # clean graphics display
 BDM <- F # select dataset, "All" or only "BDM" monitoring programs
 file.prefix <- ifelse(BDM, "BDM_", "All_")
 
-CV <- T              # train for cross-validation (CV)
+CV <- F              # train for cross-validation (CV)
 ODG <- ifelse(CV, F, # if CV = T, no out-of-domain generalization (ODG)
                   F  # train for out-of-domain generalization (ODG)
                   )  # if CV = F and ODG = F, train on whole dataset (FIT)
@@ -825,34 +825,35 @@ if(exists("df.perf1")){
 cat("Plots will be produce for the following application cases:\n", names(list.df.perf))
 cat("List of selected taxa:", sub("Occurrence.", "", select.taxa))
 
-# Prepare data for plots 
-plot.data <- perf.plot.data(list.df.perf = list.df.perf)
-
-# Boxplots standardized deviance
-list.plots <- plot.boxplots.compar.appcase(plot.data = plot.data, list.models = list.models, models.analysis = models.analysis)
-file.name <- "ModelCompar_Boxplots"
 if(length(list.df.perf) != 1){
-  temp.info.file.name <- gsub(
-    ifelse(CV, "CV_",
-           ifelse(ODG, paste0(paste(c("ODG_", ODG.info["training.ratio"], ODG.info["variable"]), collapse = ""), "_"),
-                  "FIT_")), "", info.file.name)
-} else { 
-  temp.info.file.name <- info.file.name 
-}
-print.pdf.plots(list.plots = list.plots, width = 15, height = ifelse(any(models.analysis == TRUE), 21, 8), 
-                dir.output = dir.plots.output, info.file.name = temp.info.file.name, file.name = file.name, 
-                png = TRUE, png.vertical = ifelse(any(models.analysis == TRUE), T, F), png.ratio = 1.2)
+  
+  # Prepare data for plots 
+  plot.data <- perf.plot.data(list.df.perf = list.df.perf)
+  
+  # Boxplots standardized deviance
+  list.plots <- plot.boxplots.compar.appcase(plot.data = plot.data, list.models = list.models, models.analysis = models.analysis)
+  file.name <- "ModelCompar_Boxplots"
+  if(length(list.df.perf) != 1){
+    temp.info.file.name <- gsub(
+      ifelse(CV, "CV_",
+             ifelse(ODG, paste0(paste(c("ODG_", ODG.info["training.ratio"], ODG.info["variable"]), collapse = ""), "_"),
+                    "FIT_")), "", info.file.name)
+  } else { 
+    temp.info.file.name <- info.file.name 
+  }
+  print.pdf.plots(list.plots = list.plots, width = 15, height = ifelse(any(models.analysis == TRUE), 21, 8), 
+                  dir.output = dir.plots.output, info.file.name = temp.info.file.name, file.name = file.name, 
+                  png = TRUE, png.vertical = ifelse(any(models.analysis == TRUE), T, F), png.ratio = 1.2)
+  
+  if(!any(models.analysis == T)){
+    # Standardized deviance vs prevalence
+    list.plots <- plot.perfvsprev.compar.appcase(plot.data = plot.data, list.models = list.models,
+                                                 list.taxa = list.taxa)
+    file.name <- "ModelCompar_PerfVSPrev"
+    print.pdf.plots(list.plots = list.plots, width = 15, height = ifelse(length(list.df.perf) == 1, 10, 15), dir.output = dir.plots.output, info.file.name = temp.info.file.name, file.name = file.name, 
+                    png = TRUE, png.square = TRUE, png.ratio = 0.8)
+  }
 
-if(!any(models.analysis == T)){
-  # Standardized deviance vs prevalence
-  list.plots <- plot.perfvsprev.compar.appcase(plot.data = plot.data, list.models = list.models,
-                                               list.taxa = list.taxa)
-  file.name <- "ModelCompar_PerfVSPrev"
-  print.pdf.plots(list.plots = list.plots, width = 15, height = ifelse(length(list.df.perf) == 1, 10, 15), dir.output = dir.plots.output, info.file.name = temp.info.file.name, file.name = file.name, 
-                  png = TRUE, png.square = TRUE, png.ratio = 0.8)
-}
-
-if(length(list.df.perf) != 1){
   # Table likelihood ratio
   table.likeli.ratio <- table.likelihood.ratio(list.df.perf = list.df.perf, list.models = list.models, models.analysis = models.analysis)
   file.name <- paste(dir.workspace, temp.info.file.name, "TableStatLikeliRatio", ".csv", sep="")
@@ -922,8 +923,8 @@ if(!CV){
       cat("\nPrinting", file.name)
       print.pdf.plots(list.plots = list.list.plots[[j]], width = 8.3, height = 11.7, # A4 format in inches 
                       dir.output = paste0(dir.plots.output, "ICE/"), 
-                      info.file.name = info.file.name, file.name = file.name) #,
-                      # png = T, png.vertical = T, png.ratio = 0.7)
+                      info.file.name = info.file.name, file.name = file.name,
+                      png = T, png.vertical = T, png.ratio = 0.7)
     }
   
     ## Response shape ####
