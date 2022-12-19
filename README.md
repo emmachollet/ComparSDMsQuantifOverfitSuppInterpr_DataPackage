@@ -6,7 +6,7 @@ This data package provides the data, scripts and plots needed to produce the res
 
 **Overview**
 
-In this study, we apply eight statistical and machine learning models with different complexity to predict the probability of occurrence of freshwater macroinvertabrates in Swiss rivers using nine environmental factors as explanatory variables. We compare the models in terms of predictive performance, overfitting degree and inferred response shape, during cross-validation (CV) and for out-of-domain generalization (ODG, also called "extrapolation"). 
+In this study, we apply eight statistical and machine learning models with different complexity to predict the probability of occurrence of freshwater macroinvertabrates in Swiss rivers using nine environmental factors as explanatory variables. We compare the models in terms of predictive performance, overfitting degree and inferred response shape, during cross-validation (CV), for out-of-domain generalization (ODG, also called "extrapolation") and when applied to the entire dataset (FIT). 
 
 *Authors:* Emma Chollet Ramampiandra (ECR), Andreas Scheidegger (AS), Jonas Wydler (JW), Nele Schuwirth (NS)
 *Correspondence:* emma.chollet@eawag.ch
@@ -34,6 +34,7 @@ The input data is already pre-processed (pre-processing information available up
 - *utilities.r* : Utilities functions used in all scripts.
 
 **Input data** (Directory: *Input_data*)
+
 - */Swiss.map.gdb/* * : GDB files for plotting rivers and lake on Swiss map.
 - *All_2729samples_9envfact_lme.area.elev_ModelInputs.csv* : Models input data (2729 observations of presence [1] and absence [0] of 60 taxa and calculation of nine environmental factors).
 - *All_2729samples_9envfact_lme.area.elev_PrevalenceTaxa.csv* : Information on prevalence and taxonomic level of the 60 taxa.
