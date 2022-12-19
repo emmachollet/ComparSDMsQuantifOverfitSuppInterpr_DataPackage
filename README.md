@@ -23,28 +23,31 @@ The input data is already pre-processed (pre-processing information available up
 
 ## Models application and analysis
 
-**Main script** (Directory: *R_scripts*)
+**Main script** (Directory: *R_scripts*/*)
+
 - `main.r` : Set up options for all analysis (CV, ODG or FIT). Automatically instal all R packages in the right version using `checkpoint` package. Read in input data. Split the data and standardize the environmental factors. Define all models. Train all models. Save models outputs. Process all results and produce plots and tables.
 
-**Utilities** (Directory: *R_scripts*)
+**Utilities** (Directory: *R_scripts*/*)
+
 - `stat_model_functions.r` : Functions to run hierarchical statistical models (hGLM and chGLM) using `rstan` package.
 - `ml_model_functions.r` : Functions to train statistical and machine learning models (iGLM, GAM, SVM, BCT, RF) using `caret` package (and specific algorithms packages).
 - `ann_model_functions.r` : Functions to train multilayer perceptron as artificial neural network (ANN) using `tensorflow` and `keras` packages.
 - `plot_functions.r` : Functions to produce all plots analyzing input data and models results.
 - `utilities.r` : Utilities functions used in all scripts.
 
-**Input data** (Directory: *Input_data*)
+**Input data** (Directory: *Input_data*/*)
 
 - */Swiss.map.gdb/* * : GDB files for plotting rivers and lake on Swiss map.
 - *All_2729samples_9envfact_lme.area.elev_ModelInputs.csv* : Models input data (2729 observations of presence [1] and absence [0] of 60 taxa and calculation of nine environmental factors).
 - *All_2729samples_9envfact_lme.area.elev_PrevalenceTaxa.csv* : Information on prevalence and taxonomic level of the 60 taxa.
 
-**Output data** (Directory: *Output_data*)
+**Output data** (Directory: *Output_data*/*)
 
 - */Trained_models/* * : RDS files of trained models (too heavy to be loaded in the repository, can be reproduced or available upon request).
 - */Tables/* * : RDS files of splits used to train models druing CV and ODG. CSV of models results in tables.
 
-**Plots** (Directory: *Plots*)
+**Plots** (Directory: *Plots*/*)
+
 - */Explorative_plots/* * : PDF and PNG of plots of distribution of sites and environmental factors in Switzerland and in the entire dataset.
 - */Models_analysis_plots/* * : PDF and PNG of boxplots, performance against prevalence and other models analysis plots.
 - */Models_analysis_plots/* ICE/* : PDF and PNG of Individual Conditional Expectation (ICE) and Partial Dependance Plots (PDP) per taxon.
