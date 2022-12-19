@@ -41,8 +41,9 @@ The input data is already pre-processed (pre-processing information available up
 - */Tables/* * : RDS files of splits used to train models druing CV and ODG. CSV of models results in tables.
 
 **Plots** (Directory: *Plots*)
-- */Explorative_plots/* * : Plots of distribution of sites and environmental factors in Switzerland and in the entire dataset.
-- */Models_analysis_plots/* * : Boxplots, performance against prevalence and Individual Conditional Expectation and Partial Dependance Plots of models results.
+- */Explorative_plots/* * : PDF and PNG of plots of distribution of sites and environmental factors in Switzerland and in the entire dataset.
+- */Models_analysis_plots/* * : PDF and PNG of boxplots, performance against prevalence and other models analysis plots.
+- */Models_analysis_plots/* ICE/* : PDF and PNG of Individual Conditional Expectation (ICE) and Partial Dependance Plots (PDP) per taxon.
 
 -----------------------------------------------------------------------------------------------------------------------------------
 
