@@ -585,7 +585,7 @@ make.df.outputs <- function(outputs, list.models, list.taxa,
     return(result)
 }
 
-# Make dataframe of models results for plotting
+# Make dataframe of models performance results for plotting
 perf.plot.data <- function(list.df.perf){
   
   names.appcase <- names(list.df.perf)
@@ -643,6 +643,187 @@ perf.plot.data <- function(list.df.perf){
   }
   
   return(plot.data)
+}
+
+# Make data frame for plotting ICE
+ice.plot.data <- function(taxon, outputs, ref.data, list.models, list.taxa, env.fact, select.env.fact, normalization.data, ODG, no.samples, no.steps, vect.seeds = 2021){
+  
+  # ref.data = standardized.data[[1]]
+  # taxon <- select.taxa[1]
+  name.taxon <- gsub("Occurrence.", "", taxon)
+  cat("\nProducing dataframes for ICE for taxa", taxon)
+  
+  no.models <- length(list.models)
+  # no.subselect <- length(subselect)
+  
+  if(ODG){
+    normalization.data <- normalization.data[[1]]
+    
+    standardized.training.data <- ref.data$`Training data`
+    standardized.training.data$dataset <- "Calibration"
+    
+    standardized.testing.data <- ref.data$`Testing data`
+    standardized.testing.data$dataset <- "Prediction"
+    
+    ref.data <- bind_rows(standardized.training.data, standardized.testing.data)
+  }
+  
+  # Initialize final list with all arranged plots
+  list.ice.plot.data <- vector(mode = "list", length = length(select.env.fact))
+  names(list.ice.plot.data) <- names(select.env.fact)
+  
+  for(k in select.env.fact){
+    # taxon <- subselect.taxa[1]
+    # k <- select.env.fact[1]
+    # seed <- 2021
+    name.fact <- names(select.env.fact)[which(select.env.fact == k)]
+    cat("\nFor env. fact.", name.fact)
+    
+    plot.data <- data.frame()
+    plot.data.means <- data.frame()
+    plot.data.mean.pdp <- data.frame()
+    plot.data.min.max.pdp <- data.frame()
+    plot.data.rug <- data.frame()
+    
+    for(l in list.models){
+      # l <- list.models[8]
+      cat("\nfor model", l)
+      
+      # Extract trained model
+      # trained.mod <- ann.outputs.cv$Split1$ANN$Occurrence.Gammaridae$`Trained model`
+      trained.mod <- outputs[[l]][[taxon]][["Trained model"]]
+      # trained.mod <- stat.outputs.transformed$hGLM$Occurrence.Gammaridae$`Trained model`
+      
+      # Prepare environmental data
+      if(grepl("GLM", l) & !("temperature2" %in% env.fact)){
+        vect.env.fact <- c(env.fact, "temperature2", "velocity2")
+      } else if(!grepl("GLM", l)) {
+        vect.env.fact <- env.fact
+      }
+      
+      m <- min(ref.data[,k])
+      M <- max(ref.data[,k])
+      range.test <- seq(m, M, length.out = no.steps)
+      
+      if(ODG){
+        ref.env.df <- ref.data[which(ref.data$dataset == "Calibration"), vect.env.fact]
+      } else {
+        ref.env.df <- ref.data[ , vect.env.fact]
+      }
+      
+      # Make range of backward normalized values for labelling x axis
+      # !! Might be mathematically false 
+      m2 <- (m * normalization.data$SD[name.fact]) + normalization.data$Mean[name.fact]
+      M2 <- (M * normalization.data$SD[name.fact]) + normalization.data$Mean[name.fact]
+      range.orig.fact <- round(seq(m2, M2, length.out = no.steps), digits = 4)
+      
+      for(s in vect.seeds){
+        # Subselect a number of samples/observations to plot
+        # no.samples <- 3
+        # s <- vect.seeds[2]
+        set.seed(s)
+        cat(" with seed", s)
+        
+        env.df <- ref.env.df[sample(nrow(ref.env.df), size = no.samples),]
+        # env.df <- env.df[1,]
+        
+        # Make a dataframe for predicted values for each sample
+        pred.df <- data.frame(matrix(nrow = no.samples, ncol = no.steps))
+        colnames(pred.df) <- range.orig.fact
+        
+        for(n in 1:no.samples){
+          # n <- 1
+          env.fact.test <- env.df[n,]
+          env.fact.test <- env.fact.test[rep(seq_len(1), each = no.steps), ]
+          env.fact.test[,k] <- range.test
+          
+          # Recalculate temp2 or velocity2 for whole range
+          if( (k == "temperature" | k == "velocity") & grepl("GLM", l)){
+            env.fact.test[,paste0(k,2)] <- env.fact.test[,k]^2
+            # env.fact.test[13,paste0(k,2)] <- env.fact.test[13,k]^2
+          }
+          
+          # Make predictions
+          if(l == "ANN"){
+            env.fact.test <- as.matrix(env.fact.test)
+            pred.df[n,] <- predict(trained.mod, env.fact.test)[ , which(names(outputs[[l]]) == taxon)]
+          } else if (l == "hGLM" | l == "chGLM"){
+            res.extracted   <- rstan::extract(trained.mod,permuted=TRUE,inc_warmup=FALSE)
+            pred.stat <- pred.stat.models(res.extracted = res.extracted, matrix.predictors = as.matrix(env.fact.test))
+            colnames(pred.stat) <- list.taxa
+            pred.df[n,] <- pred.stat[,taxon]
+          } else {
+            pred.df[n,] <- predict(trained.mod, env.fact.test, type = 'prob')[,"present"]
+          }
+        } 
+        
+        # Subselect predictions for plot resolution
+        # n <- subselect
+        # temp.range.fact <- range.orig.fact[seq(1,200, by = subselect[n])]
+        temp.pred.df <- pred.df
+        temp.pred.df$observation <- rownames(pred.df)
+        
+        # Prepare plot data
+        temp.plot.data <- gather(temp.pred.df, key = variable, value = value, -observation)
+        temp.plot.data$observation <- as.factor(temp.plot.data$observation)
+        temp.plot.data$Model <- l
+        temp.plot.data[, "variable"] <- as.numeric(temp.plot.data[, "variable"])
+        temp.plot.data$Seed <- s
+        
+        plot.data <- bind_rows(plot.data, temp.plot.data)
+        
+        # Make dataframe for PDP (mean of ICE)
+        mean.pdp <- data.frame(colMeans(temp.pred.df[,1:(length(temp.pred.df)-1)]))
+        colnames(mean.pdp) <- "mean.pdp"
+        mean.pdp$variable <- range.orig.fact
+        mean.pdp$Model <- as.factor(l)
+        mean.pdp$Seed <- s
+        plot.data.mean.pdp <- bind_rows(plot.data.mean.pdp, mean.pdp)
+        
+        # Make dataframe for min and max value of pdp
+        temp.min.max <- data.frame("Model" = l, "min" = min(mean.pdp$mean), "max" = max(mean.pdp$mean))
+        temp.min.max$Seed <- s
+        plot.data.min.max.pdp <- bind_rows(plot.data.min.max.pdp, temp.min.max)
+        
+        
+        # Make dataframe for predicted values when others are at their mean
+        means <- data.frame(variable = range.orig.fact)
+        means$Model <- l
+        means$Seed <- s
+        env.fact.mean.test <- data.frame(matrix(rep(0, times = length(vect.env.fact)*no.steps), nrow = no.steps))
+        colnames(env.fact.mean.test) <- vect.env.fact
+        env.fact.mean.test[,k] <- range.test
+        if( (k == "temperature" | k == "velocity") & grepl("GLM", l)){
+          env.fact.mean.test[,paste0(k,2)] <- env.fact.mean.test[,k]^2
+          # env.fact.test[13,paste0(k,2)] <- env.fact.test[13,k]^2
+        }
+        if(l == "ANN"){
+          env.fact.mean.test <- as.matrix(env.fact.mean.test)
+          means$mean.average <- predict(trained.mod, env.fact.mean.test)[ , which(names(outputs[[l]]) == taxon)]
+        } else if (l == "hGLM" | l == "chGLM"){
+          res.extracted   <- rstan::extract(trained.mod,permuted=TRUE,inc_warmup=FALSE)
+          pred.stat <- pred.stat.models(res.extracted = res.extracted, matrix.predictors = as.matrix(env.fact.mean.test))
+          colnames(pred.stat) <- list.taxa
+          means$mean.average <- pred.stat[,taxon]
+        } else {
+          means$mean.average <- predict(trained.mod, env.fact.mean.test, type = 'prob')[,"present"]
+        }
+        plot.data.means <- bind_rows(plot.data.means, means)
+        
+        # Make dataframe for rug (datapoints of observations)
+        observations <- as.data.frame((env.df[,k] * normalization.data$SD[name.fact]) + normalization.data$Mean[name.fact])
+        colnames(observations) <- "variable"
+        observations$Model <- as.factor(l)
+        observations$Seed <- s
+        plot.data.rug <- bind_rows(plot.data.rug, observations)
+      }
+    }
+    
+    list.ice.plot.data[[name.fact]] <- list("name.taxon" = name.taxon, "env.fact" = name.fact, "plot.data.ice" = plot.data, 
+                                            "plot.data.mean.pdp" = plot.data.mean.pdp, "plot.data.min.max.pdp" = plot.data.min.max.pdp,
+                                            "plot.data.means" = plot.data.means, "plot.data.rug" = plot.data.rug)
+  }
+  return(list.ice.plot.data)
 }
 
 # Table 3: Summary statitistics likelihood ratio ####

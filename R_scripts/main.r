@@ -3,7 +3,7 @@
 ## --- A comparison of machine learning and statistical species distribution models: ---
 ##                -- when overfitting hurts interpretation -- 
 ## 
-##                          --- December 2022 ---
+##                          --- February 2023 ---
 ##
 ## --- Emma Chollet, Andreas Scheidegger, Jonas Wydler and Nele Schuwirth ---
 ##
@@ -44,7 +44,8 @@ models.analysis <- c(    # comparison analysis of different models structures:
   "rf.hyperparam"   = F, # RF regularization
   "ann.hyperparam"  = F, # ANN hyperparameter tuning
   "rf.random"       = F, # sensitivity analysis RF randomness
-  "ann.random"      = F  # sensitivity analysis ANN randomness
+  "ann.random"      = F, # sensitivity analysis ANN randomness
+  "ice.random"      = T  # analyze random choice of observ. for ICE plots 
 )
 
 case.compar <- c(     # comparison analysis of models trained on different datasets:
@@ -223,13 +224,7 @@ standardized.data.factors <- stand.norm.data$standardized.data.factors
 normalization.data <- stand.norm.data$normalization.data
 remove(stand.norm.data)
 
-# Produce correlation matrix
-file.name <- paste0(dir.expl.plots.output, info.file.name.data, "_CorrelationMatrix")
-if(!file.exists(paste0(file.name,".pdf"))){
-  pdf.corr.mat.env.fact(data = data, env.fact = env.fact, file.name = file.name)
-}
-
-# Analyze splits
+# Fig. SI A 2: analysis splits ####
 file.name <- paste0("_AnalysisSplits_", train.info, ifelse(ODG, paste0("_by", ODG.info["model"],""), ""))
 if(!file.exists(paste0(dir.expl.plots.output, info.file.name.data, file.name, ".pdf"))){
   list.plots <- analysis.splits(inputs = inputs, splits = splits, env.fact = env.fact, vect.info = vect.info)
@@ -237,7 +232,23 @@ if(!file.exists(paste0(dir.expl.plots.output, info.file.name.data, file.name, ".
   print.pdf.plots(list.plots = list.plots, width = 15, height = 8, dir.output = dir.expl.plots.output, info.file.name = info.file.name.data, file.name = file.name, png = T, png.ratio = 0.8)
 }
 
-# Analyze prevalence
+# Fig. SI X X: maps env. fact ####
+file.name <- "_MapsEnvFact"
+list.env.fact <- mapply(c, env.fact, names(env.fact), SIMPLIFY = FALSE)
+if(!file.exists(paste0(dir.expl.plots.output, info.file.name.data, file.name, ".pdf"))){
+  list.plots <- maps.env.fact(inputs = inputs, list.env.fact = list.env.fact, data = data)
+  cat("Printing PDF\n")
+  print.pdf.plots(list.plots = list.plots, width = 15, height = 15, dir.output = dir.expl.plots.output, info.file.name = info.file.name.data, file.name = file.name, 
+                  png = T,  png.ratio = 1)
+}
+
+# Fig. SI A 3: correlation matrix ####
+file.name <- paste0(dir.expl.plots.output, info.file.name.data, "_CorrelationMatrix")
+if(!file.exists(paste0(file.name,".pdf"))){
+  pdf.corr.mat.env.fact(data = data, env.fact = env.fact, file.name = file.name)
+}
+
+# Fig. SI A 9: prevalence analysis ####
 file.name <- paste0("_AnalysisPrevalence_", train.info, ifelse(ODG, paste0("_by", ODG.info["model"],""), ""))
 if(!file.exists(paste0(dir.expl.plots.output, info.file.name.data, file.name, ".pdf")) & !CV){
   list.plots <- analysis.prevalence(prev.inv = prev.inv, splits = splits, ODG = ODG)
@@ -673,7 +684,7 @@ if(CV | ODG){
 
 # remove(temp.outputs)
 if(exists("outputs")){  
-  # Make sure list.models match with models outpur
+  # Make sure list.models match with models output
   if(CV|ODG){
     vec1 <- names(outputs.cv$Split1)
     vec2 <- list.models
@@ -757,7 +768,6 @@ file.name <- paste(dir.workspace, info.file.name, "TableAUC", ".csv", sep="")
 cat(file.name)
 write.table(df.auc.pred, file.name, sep=",", row.names=F, col.names=TRUE)
 
-
 # Explore likelihood ratio
 if((CV|ODG) & "iGLM" %in% list.models){
   temp.df <- arrange(df.perf, desc(iGLM.likelihood.ratio))
@@ -822,8 +832,8 @@ if(exists("df.perf1")){
                                        "FIT"))
 }
 
-cat("Plots will be produce for the following application cases:\n", names(list.df.perf))
-cat("List of selected taxa:", sub("Occurrence.", "", select.taxa))
+cat("\nPlots will be produce for the following application cases:", names(list.df.perf),
+    "\nList of selected taxa:", sub("Occurrence.", "", select.taxa), "\n\n")
 
 if(length(list.df.perf) != 1){
   
@@ -884,6 +894,14 @@ if(CV | !ODG){
 
 # Plots specifically related to trained models (and not to CV)
 
+if(plot.all.ICE == T){ # to produce all ICE/PDP provided in manuscript and Supp. Inf.
+  temp.select.taxa <- list(select.taxa, list.taxa[which(list.taxa != "Occurrence.Perlodidae")])
+  temp.select.env.fact <- list(env.fact, env.fact[1])
+} else { # 
+  temp.select.taxa <- list(select.taxa[1], select.taxa[2])
+  temp.select.env.fact <- list(env.fact[1], env.fact[2])
+}
+
 # If CV or ODG, take just the first split for trained models analysis
 # Doesn't work for CV for now
 if(!CV & ODG){
@@ -892,17 +910,16 @@ if(!CV & ODG){
 }
 
 if(!CV){
-  if(plot.all.ICE == T){ # to produce all ICE/PDP provided in manuscript and Supp. Inf.
-    temp.select.taxa <- list(select.taxa, list.taxa[which(list.taxa != "Occurrence.Perlodidae")])
-    temp.select.env.fact <- list(env.fact, env.fact[1])
-  } else { # 
-    temp.select.taxa <- list(select.taxa[1], select.taxa[2])
-    temp.select.env.fact <- list(env.fact[1], env.fact[2])
-  }
   
   for (n in 1:length(temp.select.taxa)) {
+    # n = 1
+    # subselect.taxa <- select.taxa[1]
+    # select.env.fact <- env.fact[1:2]
+    source("utilities.r")
+    source("plot_functions.r")
     
     subselect.taxa <- temp.select.taxa[[n]]
+    names(subselect.taxa) <- gsub("Occurrence.", "", subselect.taxa)
     select.env.fact <- temp.select.env.fact[[n]]
     
     ## ICE/PDP ####
@@ -910,18 +927,36 @@ if(!CV){
     no.samples <- 100
     no.steps <- 200
     subselect <- 1
+    vect.seeds <- c(1021, 2021, 3021)
     
-    list.list.plots <- lapply(subselect.taxa, FUN= plot.ice.per.taxa, outputs = outputs, ref.data = standardized.data[[1]], 
-                              list.models = list.models, list.taxa = list.taxa,
-                              env.fact = env.fact, select.env.fact = select.env.fact,
-                              normalization.data = normalization.data, ODG = ODG, 
-                              no.samples = no.samples, no.steps = no.steps, subselect = subselect)
+    file.name <- paste0(dir.workspace, info.file.name, "PlotDataICE_", no.samples, "Samp_",
+                        length(subselect.taxa), "SelectTaxa_", length(select.env.fact), "SelectEnvFact", 
+                        ifelse(models.analysis["ice.random"], paste0("_RandomAnal", length(vect.seeds), "Seeds"), ""), ".rds")
     
+    # Produce dataframes for plotting ICE and PDP
+    if(file.exists(file.name)){
+      list.ice.plot.data <- readRDS(file.name)
+    } else {
+      cat("Producing data for plotting ICE and PDP and saving it in\n", file.name)
+      list.ice.plot.data <- lapply(subselect.taxa, FUN = ice.plot.data, outputs = outputs, ref.data = standardized.data[[1]], 
+                                   list.models = list.models, list.taxa = list.taxa,
+                                   env.fact = env.fact, select.env.fact = select.env.fact,
+                                   normalization.data = normalization.data, ODG = ODG, 
+                                   no.samples = no.samples, no.steps = no.steps, vect.seeds = vect.seeds)
+      saveRDS(list.ice.plot.data, file = file.name)
+    }
+    
+    list.list.plots <- lapply(list.ice.plot.data, FUN = plot.ice.per.taxa, 
+                              list.models = list.models, subselect = subselect, ice.random = models.analysis["ice.random"])
+
     for (j in 1:length(subselect.taxa)) {
       taxon <- sub("Occurrence.", "", subselect.taxa[j])
-      file.name <- paste0("ICE_", no.samples, "samp_", taxon, "_", length(select.env.fact), "envfact")
+      file.name <- paste0("ICE_", no.samples, "Samp_", taxon, "_", length(select.env.fact), "EnvFact")
+      if(models.analysis["ice.random"]){
+        file.name <- paste0(file.name, "_RandomAnal", length(vect.seeds), "Seeds")
+      }
       cat("\nPrinting", file.name)
-      print.pdf.plots(list.plots = list.list.plots[[j]], width = 8.3, height = 11.7, # A4 format in inches 
+      print.pdf.plots(list.plots = list.list.plots[[j]], width = 2*8.3, height = 2*11.7, # A4 format in inches 
                       dir.output = paste0(dir.plots.output, "ICE/"), 
                       info.file.name = info.file.name, file.name = file.name,
                       png = T, png.vertical = T, png.ratio = 0.7)

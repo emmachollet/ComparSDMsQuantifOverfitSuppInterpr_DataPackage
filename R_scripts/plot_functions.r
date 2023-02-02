@@ -171,6 +171,33 @@ analysis.splits <- function(inputs, splits, env.fact, vect.info){
   return(list.plots)
 }
 
+# Figure SI X X: spatial distribution env. fact. ####
+maps.env.fact <- function(inputs, list.env.fact, data){
+  
+  plot_maps_variable = function (pair.fact.name, inputs, data) {
+    variable <- pair.fact.name[1]
+    print(variable)
+    name.variable <- pair.fact.name[2]
+    print(name.variable)
+    ggplot(data = data[,c("X","Y", variable)]) + 
+      geom_sf(data = inputs$ch, fill="#E8E8E8", color="black") + 
+      geom_sf(data = inputs$rivers.major, fill=NA, color="lightblue", show.legend = FALSE) + 
+      geom_sf(data = inputs$lakes.major, fill="lightblue", color="lightblue", show.legend = FALSE) + 
+      geom_point(aes(x=X, y=Y, color = data[, variable]), size= 3, alpha= 0.6) + 
+      scale_colour_gradient2(name = name.variable, 
+                                    high = "firebrick3") + 
+      theme_void(base_size = 18) + 
+      theme(panel.grid.major = element_line(colour="transparent"),
+                   plot.margin = unit(c(0.1,0.1,0.1,0.1), "lines"))
+  }
+  
+  # !! almost there, just missing labels 
+  list.plots <- lapply(list.env.fact, plot_maps_variable, inputs  = inputs, data = data)
+  
+  return(list.plots)
+}
+
+
 # Figure SI A 3: correlation matrix ####
 pdf.corr.mat.env.fact <- function(data, env.fact, file.name){
   
@@ -581,160 +608,33 @@ plot.perfvsprev.compar.appcase <- function(plot.data, list.models, list.taxa){
 
 
 # Figure 3, SI B and SI C: ICE and PDP ####
-plot.ice.per.taxa <- function(taxon, outputs, ref.data, list.models, list.taxa, env.fact, select.env.fact, normalization.data, ODG, no.samples, no.steps, subselect){
+plot.ice.per.taxa <- function(ice.plot.data.taxon, list.models, subselect, ice.random){
   
-  # ref.data = standardized.data[[1]]
-  # taxon <- select.taxa[1]
-  name.taxon <- gsub("Occurrence.", "", taxon)
-  cat("\nProducing ICE plot for taxa", taxon)
-  
-  no.models <- length(list.models)
-  no.subselect <- length(subselect)
-  
-  if(ODG){
-    normalization.data <- normalization.data[[1]]
+  # ice.plot.data.taxon <- list.ice.plot.data[[1]]
+  plot.ice.per.env.fact = function (plot.data.env.fact, list.models, subselect, ice.random) {
+    # plot.data.env.fact <- ice.plot.data.taxon[[1]]
+    # subselect <- 1
+    # ice.random <- T
+    name.taxon <- plot.data.env.fact$name.taxon
+    name.fact <- plot.data.env.fact$env.fact
+    plot.data <- plot.data.env.fact$plot.data.ice
+    plot.data.mean.pdp <- plot.data.env.fact$plot.data.mean.pdp
+    plot.data.min.max.pdp <- plot.data.env.fact$plot.data.min.max.pdp
+    plot.data.means <- plot.data.env.fact$plot.data.means
+    plot.data.rug <- plot.data.env.fact$plot.data.rug
+    x.coord.arrow <- max(plot.data$variable)
     
-    standardized.training.data <- ref.data$`Training data`
-    standardized.training.data$dataset <- "Calibration"
+    # Subselect predictions for plot resolution
+    temp.range.fact <- unique(plot.data$variable)[seq(1,length(unique(plot.data$variable)), by = subselect)]
+    plot.data <- filter(plot.data, plot.data$variable %in% temp.range.fact)
+    plot.data.mean.pdp <- filter(plot.data.mean.pdp, plot.data.mean.pdp$variable %in% temp.range.fact)
+    plot.data.means <- filter(plot.data.means, plot.data.means$variable %in% temp.range.fact)
     
-    standardized.testing.data <- ref.data$`Testing data`
-    standardized.testing.data$dataset <- "Prediction"
-    
-    ref.data <- bind_rows(standardized.training.data, standardized.testing.data)
-  }
-  
-  # Initialize final list with all arranged plots
-  list.plots <- list()
-  
-  for(k in select.env.fact){
-    # taxon <- subselect.taxa[1]
-    # k <- select.env.fact[1]
-    name.fact <- names(select.env.fact)[which(select.env.fact == k)]
-    cat("\nFor env. fact.", name.fact)
-    
-    plot.data <- data.frame()
-    plot.data.means <- data.frame()
-    plot.data.mean.pdp <- data.frame()
-    plot.data.rug <- data.frame()
-    
-    for(l in list.models){
-      # l <- list.models[8]
-      cat("\nfor model", l)
-      
-      # Extract trained model
-      # trained.mod <- ann.outputs.cv$Split1$ANN$Occurrence.Gammaridae$`Trained model`
-      trained.mod <- outputs[[l]][[taxon]][["Trained model"]]
-      # trained.mod <- stat.outputs.transformed$hGLM$Occurrence.Gammaridae$`Trained model`
-      
-      # Prepare environmental data
-      if(grepl("GLM", l) & !("temperature2" %in% env.fact)){
-        vect.env.fact <- c(env.fact, "temperature2", "velocity2")
-      } else if(!grepl("GLM", l)) {
-        vect.env.fact <- env.fact
-      }
-      
-      m <- min(ref.data[,k])
-      M <- max(ref.data[,k])
-      range.test <- seq(m, M, length.out = no.steps)
-      
-      if(ODG){
-        env.df <- ref.data[which(ref.data$dataset == "Calibration"), vect.env.fact]
-      } else {
-        env.df <- ref.data[ , vect.env.fact]
-      }
-      
-      # Make range of backward normalized values for labelling x axis
-      # !! Might be mathematically false 
-      m2 <- (m * normalization.data$SD[name.fact]) + normalization.data$Mean[name.fact]
-      M2 <- (M * normalization.data$SD[name.fact]) + normalization.data$Mean[name.fact]
-      range.orig.fact <- round(seq(m2, M2, length.out = no.steps), digits = 4)
-      
-      # Subselect a number of samples/observations to plot
-      # no.samples <- 3
-      set.seed(2021)
-      
-      env.df <- env.df[sample(nrow(env.df), size = no.samples),]
-      # env.df <- env.df[1,]
-      
-      # Make a dataframe for predicted values for each sample
-      pred.df <- data.frame(matrix(nrow = no.samples, ncol = no.steps))
-      colnames(pred.df) <- range.orig.fact
-      
-      for(n in 1:no.samples){
-        # n <- 1
-        env.fact.test <- env.df[n,]
-        env.fact.test <- env.fact.test[rep(seq_len(1), each = no.steps), ]
-        env.fact.test[,k] <- range.test
-        
-        # Recalculate temp2 or velocity2 for whole range
-        if( (k == "temperature" | k == "velocity") & grepl("GLM", l)){
-          env.fact.test[,paste0(k,2)] <- env.fact.test[,k]^2
-          # env.fact.test[13,paste0(k,2)] <- env.fact.test[13,k]^2
-        }
-        
-        # Make predictions
-        if(l == "ANN"){
-          env.fact.test <- as.matrix(env.fact.test)
-          pred.df[n,] <- predict(trained.mod, env.fact.test)[ , which(names(outputs[[l]]) == taxon)]
-        } else if (l == "hGLM" | l == "chGLM"){
-          res.extracted   <- rstan::extract(trained.mod,permuted=TRUE,inc_warmup=FALSE)
-          pred.stat <- pred.stat.models(res.extracted = res.extracted, matrix.predictors = as.matrix(env.fact.test))
-          colnames(pred.stat) <- list.taxa
-          pred.df[n,] <- pred.stat[,taxon]
-        } else {
-          pred.df[n,] <- predict(trained.mod, env.fact.test, type = 'prob')[,"present"]
-        }
-      } 
-      
-      # Subselect predictions for plot resolution
-      n <- subselect
-      temp.range.fact <- range.orig.fact[seq(1,200, by = subselect[n])]
-      temp.pred.df <- pred.df[, which(colnames(pred.df) %in% temp.range.fact)]
-      temp.pred.df$observation <- rownames(pred.df)
-      
-      # Prepare plot data
-      temp.plot.data <- gather(temp.pred.df, key = variable, value = value, -observation)
-      temp.plot.data$observation <- as.factor(temp.plot.data$observation)
-      temp.plot.data$Model <- l
-      temp.plot.data[, "variable"] <- as.numeric(temp.plot.data[, "variable"])
-      
-      plot.data <- bind_rows(plot.data, temp.plot.data)
-      
-      # Make dataframe for PDP (mean of ICE)
-      means <- data.frame(colMeans(temp.pred.df[,1:(length(temp.pred.df)-1)]))
-      colnames(means) <- "mean"
-      means$variable <- temp.range.fact
-      means$Model <- as.factor(l)
-      plot.data.means <- bind_rows(plot.data.means, means)
-      
-      # Make dataframe for predicted values when others are at their mean
-      mean.pdp <- data.frame(variable = range.orig.fact)
-      mean.pdp$Model <- l
-      env.fact.mean.test <- data.frame(matrix(rep(0, times = length(vect.env.fact)*no.steps), nrow = no.steps))
-      colnames(env.fact.mean.test) <- vect.env.fact
-      env.fact.mean.test[,k] <- range.test
-      if( (k == "temperature" | k == "velocity") & grepl("GLM", l)){
-        env.fact.mean.test[,paste0(k,2)] <- env.fact.mean.test[,k]^2
-        # env.fact.test[13,paste0(k,2)] <- env.fact.test[13,k]^2
-      }
-      if(l == "ANN"){
-        env.fact.mean.test <- as.matrix(env.fact.mean.test)
-        mean.pdp$mean <- predict(trained.mod, env.fact.mean.test)[ , which(names(outputs[[l]]) == taxon)]
-      } else if (l == "hGLM" | l == "chGLM"){
-        res.extracted   <- rstan::extract(trained.mod,permuted=TRUE,inc_warmup=FALSE)
-        pred.stat <- pred.stat.models(res.extracted = res.extracted, matrix.predictors = as.matrix(env.fact.mean.test))
-        colnames(pred.stat) <- list.taxa
-        mean.pdp$mean <- pred.stat[,taxon]
-      } else {
-        mean.pdp$mean <- predict(trained.mod, env.fact.mean.test, type = 'prob')[,"present"]
-      }
-      plot.data.mean.pdp <- bind_rows(plot.data.mean.pdp, mean.pdp)
-      
-      # Make dataframe for rug (datapoints of observations)
-      observations <- as.data.frame((env.df[,k] * normalization.data$SD[name.fact]) + normalization.data$Mean[name.fact])
-      colnames(observations) <- "variable"
-      observations$Model <- as.factor(l)
-      plot.data.rug <- bind_rows(plot.data.rug, observations)
+    # Select seed if no analysis of randomness
+    if(!ice.random){
+      plot.data <- filter(plot.data, plot.data$Seed == 2021)
+      plot.data.mean.pdp <- filter(plot.data.mean.pdp, plot.data.mean.pdp$Seed == 2021)
+      plot.data.means <- filter(plot.data.means, plot.data.means$Seed == 2021)
     }
     
     # Reorder model factor levels to have right order on panel
@@ -749,34 +649,44 @@ plot.ice.per.taxa <- function(taxon, outputs, ref.data, list.models, list.taxa, 
     
     p <- ggplot(plot.data, aes(x = variable, y = value, group=factor(observation))) 
     p <- p + geom_line(aes(color=factor(observation)), alpha = 0.3, show.legend = FALSE) # remove legend that would be the number of samples
-    p <- p + geom_line(data = plot.data.means,
-                       aes(x = variable, y = mean), 
+    p <- p + geom_line(data = plot.data.mean.pdp,
+                       aes(x = variable, y = mean.pdp), 
                        color = "grey20", size = 1.5, # alpha = 0.7, 
                        inherit.aes = F)
-    p <- p + geom_line(data = plot.data.mean.pdp,
-                       aes(x = variable, y = mean), 
+    p <- p + geom_line(data = plot.data.means,
+                       aes(x = variable, y = mean.average), 
                        color = "grey20", size = 0.5, linetype='dashed',# alpha = 0.7, 
                        inherit.aes = F)
     p <- p + geom_rug(data = plot.data.rug,
                       aes(x = variable), 
                       color = "grey20", alpha = 0.7, inherit.aes = F)
-    if(ODG & k == "temperature"){
+    p <- p + geom_segment(data =  plot.data.min.max.pdp,inherit.aes = FALSE,
+                          lineend = "round", linejoin = "round", #linetype = "dashed",
+                          aes(x = x.coord.arrow, y = min, xend = x.coord.arrow, yend = max),
+                          arrow = arrow(length = unit(0.3, "cm"), ends = "both"))
+    if(ODG & name.fact == "Temperature"){
       split.value <- max(plot.data.rug[,"variable"])
       p <- p + geom_vline(xintercept = split.value, linetype='dashed', col = 'grey30')
     }
-    p <- p + facet_wrap( ~ Model,# scales = "free_x", 
-                         strip.position="top",
-                         ncol = 2)
+    if(ice.random){
+      p <- p + facet_grid(Model ~ Seed)
+    } else {
+      p <- p + facet_wrap( ~ Model,# scales = "free_x", 
+                           strip.position="top",
+                           ncol = 2)
+    }
     p <- p + theme_bw(base_size = 10)
     p <- p + theme(strip.background = element_rect(fill = "white"))
     p <- p + labs(title = paste("ICE and PDP for", name.taxon), # paste(l),
-      # subtitle = paste("Resolution:", no.steps/no.subselect, "steps"),
-      x = name.fact,
-      y = "Predicted probability of occurrence")
+                  # subtitle = paste("Resolution:", no.steps/no.subselect, "steps"),
+                  x = name.fact,
+                  y = "Predicted probability of occurrence")
     # p
-    
-    list.plots[[paste(k,subselect[n], sep = "_")]] <- p
+    return(p)
   }
+  
+  list.plots <- lapply(ice.plot.data.taxon, plot.ice.per.env.fact, list.models, subselect, ice.random)
+  
   return(list.plots)
 }
 
