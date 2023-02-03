@@ -645,6 +645,38 @@ perf.plot.data <- function(list.df.perf){
   return(plot.data)
 }
 
+# Make list of models prediction during CV for each taxon
+make.list.models.pred <- function(outputs.cv, list.taxa, list.models){
+  
+  list.df.models.pred <- vector(mode = "list", length = length(list.taxa))
+  names(list.df.models.pred) <- list.taxa
+  
+  for(j in list.taxa){
+    # j <- list.taxa[1]
+    df.models.pred <- data.frame()
+    for (l in list.models) {
+      # l <- list.models[1]
+      if(l == "hGLM" | l == "chGLM"){
+        temp.l <- "iGLM"
+      } else {
+        temp.l <- l
+      }
+      list.split.df.pred <- list(bind_cols(outputs.cv[["Split1"]][[l]][[j]][["Prediction probabilities testing set"]],
+                                           outputs.cv[["Split1"]][[temp.l]][[j]][["Observation testing set"]][,c("X","Y", j)]),
+                                 bind_cols(outputs.cv[["Split2"]][[l]][[j]][["Prediction probabilities testing set"]],
+                                           outputs.cv[["Split2"]][[temp.l]][[j]][["Observation testing set"]][,c("X","Y", j)]),
+                                 bind_cols(outputs.cv[["Split3"]][[l]][[j]][["Prediction probabilities testing set"]],
+                                           outputs.cv[["Split3"]][[temp.l]][[j]][["Observation testing set"]][,c("X","Y", j)]))
+      temp.df.pred <- bind_rows(list.split.df.pred, .id = "Split")
+      temp.df.pred$Model <- l
+      df.models.pred <- bind_rows(df.models.pred, temp.df.pred)
+    }
+    df.models.pred$Observation <- df.models.pred[,j]
+    list.df.models.pred[[j]] <- df.models.pred
+  }
+  return(list.df.models.pred)
+}
+
 # Make data frame for plotting ICE
 ice.plot.data <- function(taxon, outputs, ref.data, list.models, list.taxa, env.fact, select.env.fact, normalization.data, ODG, no.samples, no.steps, vect.seeds = 2021){
   

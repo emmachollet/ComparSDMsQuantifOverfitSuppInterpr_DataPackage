@@ -24,7 +24,7 @@ graphics.off() # clean graphics display
 BDM <- F # select dataset, "All" or only "BDM" monitoring programs
 file.prefix <- ifelse(BDM, "BDM_", "All_")
 
-CV <- F              # train for cross-validation (CV)
+CV <- T              # train for cross-validation (CV)
 ODG <- ifelse(CV, F, # if CV = T, no out-of-domain generalization (ODG)
                   F  # train for out-of-domain generalization (ODG)
                   )  # if CV = F and ODG = F, train on whole dataset (FIT)
@@ -892,6 +892,22 @@ if(CV | !ODG){
                   dir.output = dir.plots.output, info.file.name = info.file.name, file.name = file.name, png = TRUE, png.vertical = TRUE)
 }
 
+if(CV){
+  list.df.models.pred <- make.list.models.pred(outputs.cv = outputs.cv, list.taxa = select.taxa, list.models = list.models)
+
+  list.plots <- lapply(list.df.models.pred, FUN = plot.maps.models.pred, inputs = inputs, list.models = list.models)
+  file.name <- "MapsModelsPrediction"
+  print.pdf.plots(list.plots = list.plots, width = 8.3, height = 11.7, # A4 format in inches 
+                  dir.output = dir.plots.output, 
+                  info.file.name = info.file.name, file.name = file.name,
+                  png = F)
+  
+  # plot also null model on map 
+}
+
+source("utilities.r")
+source("plot_functions.r")
+
 # Plots specifically related to trained models (and not to CV)
 
 if(plot.all.ICE == T){ # to produce all ICE/PDP provided in manuscript and Supp. Inf.
@@ -915,8 +931,6 @@ if(!CV){
     # n = 1
     # subselect.taxa <- select.taxa[1]
     # select.env.fact <- env.fact[1:2]
-    source("utilities.r")
-    source("plot_functions.r")
     
     subselect.taxa <- temp.select.taxa[[n]]
     names(subselect.taxa) <- gsub("Occurrence.", "", subselect.taxa)
@@ -946,7 +960,7 @@ if(!CV){
       saveRDS(list.ice.plot.data, file = file.name)
     }
     
-    list.list.plots <- lapply(list.ice.plot.data, FUN = plot.ice.per.taxa, 
+    list.list.ice.plots <- lapply(list.ice.plot.data, FUN = plot.ice.per.taxa, 
                               list.models = list.models, subselect = subselect, ice.random = models.analysis["ice.random"])
 
     for (j in 1:length(subselect.taxa)) {
@@ -956,12 +970,33 @@ if(!CV){
         file.name <- paste0(file.name, "_RandomAnal", length(vect.seeds), "Seeds")
       }
       cat("\nPrinting", file.name)
-      print.pdf.plots(list.plots = list.list.plots[[j]], width = 2*8.3, height = 2*11.7, # A4 format in inches 
+      print.pdf.plots(list.plots = list.list.ice.plots[[j]], width = 8.3, height = 11.7, # A4 format in inches 
                       dir.output = paste0(dir.plots.output, "ICE/"), 
                       info.file.name = info.file.name, file.name = file.name,
                       png = T, png.vertical = T, png.ratio = 0.7)
     }
-  
+    
+    list.list.overlapped.pdp <- lapply(list.ice.plot.data, FUN = plot.overlapped.pdp, list.models = list.models,
+                                       ice.random = models.analysis["ice.random"], means = F)
+    for (j in 1:length(subselect.taxa)) {
+      taxon <- sub("Occurrence.", "", subselect.taxa[j])
+      file.name <- paste0("OverlappedPDP_", taxon, "_", length(select.env.fact), "EnvFact")
+      if(models.analysis["ice.random"]){
+        file.name <- paste0(file.name, "_RandomAnal", length(vect.seeds), "Seeds")
+        width = 8.3
+        height = 11.7
+      } else {
+        width = 8
+        height = 4
+      }
+      cat("\nPrinting", file.name)
+      print.pdf.plots(list.plots = list.list.overlapped.pdp[[j]], width = width, height = height,
+                      dir.output = paste0(dir.plots.output, "ICE/"), 
+                      info.file.name = info.file.name, file.name = file.name,
+                      png = T, png.square = T, png.ratio = 1.3)
+    }
+    
+    
     ## Response shape ####
     
     list.list.plots <- lapply(subselect.taxa, FUN = plot.rs.taxa, outputs = outputs, list.models = list.models, 
@@ -978,3 +1013,5 @@ if(!CV){
     
   }
 }
+
+

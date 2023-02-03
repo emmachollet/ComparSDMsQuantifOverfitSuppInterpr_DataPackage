@@ -19,13 +19,15 @@
 print.pdf.plots <- function(list.plots, width = 12, height = width*3/4, dir.output, info.file.name = "", file.name, png = FALSE, png.square = F, png.vertical = F, png.ratio = 1){
   
   pdf(paste0(dir.output, info.file.name, file.name, ".pdf"), paper = 'special', width = width, height = height, onefile = TRUE)
-  
+  cat("\nPDF:")
   for (n in 1:length(list.plots)) {
     plot(list.plots[[n]])
+    cat(" ",n, " ")
   }
   dev.off()
   
   if(png){
+    cat("\nPNG:")
   # Print a png file
     if(png.square){
       w = 1280
@@ -40,6 +42,7 @@ print.pdf.plots <- function(list.plots, width = 12, height = width*3/4, dir.outp
     
     for (n in 1:length(list.plots)) {
       # n = 1
+      cat(" ",n, " ")
       png(paste0(dir.output, info.file.name, file.name, n, ".png"), width = png.ratio*w, height = png.ratio*h) # size in pixels (common 16:9 --> 1920�1080 or 1280�720)
       plot(list.plots[[n]])
       dev.off()
@@ -651,7 +654,7 @@ plot.ice.per.taxa <- function(ice.plot.data.taxon, list.models, subselect, ice.r
     p <- p + geom_line(aes(color=factor(observation)), alpha = 0.3, show.legend = FALSE) # remove legend that would be the number of samples
     p <- p + geom_line(data = plot.data.mean.pdp,
                        aes(x = variable, y = mean.pdp), 
-                       color = "grey20", size = 1.5, # alpha = 0.7, 
+                       color = "grey20", size = 1, # alpha = 0.7, 
                        inherit.aes = F)
     p <- p + geom_line(data = plot.data.means,
                        aes(x = variable, y = mean.average), 
@@ -686,6 +689,61 @@ plot.ice.per.taxa <- function(ice.plot.data.taxon, list.models, subselect, ice.r
   }
   
   list.plots <- lapply(ice.plot.data.taxon, plot.ice.per.env.fact, list.models, subselect, ice.random)
+  
+  return(list.plots)
+}
+
+plot.overlapped.pdp <- function(ice.plot.data.taxon, list.models, ice.random, means = F){
+  
+  # ice.plot.data.taxon <- list.ice.plot.data[[1]]
+  plot.overlapped.pdp.per.env.fact = function (plot.data.env.fact, list.models, ice.random, means) {
+    # plot.data.env.fact <- ice.plot.data.taxon[[1]]
+    # ice.random <- F
+    name.taxon <- plot.data.env.fact$name.taxon
+    name.fact <- plot.data.env.fact$env.fact
+    title <- ifelse(means, "responses with other factors averaged", "PDP")
+    if(means){
+      plot.data <- plot.data.env.fact$plot.data.means
+      plot.data$lines <- plot.data$mean.average
+    } else {
+      plot.data <- plot.data.env.fact$plot.data.mean.pdp
+      plot.data$lines <- plot.data$mean.pdp
+    }
+    plot.data$Seed <- as.factor(plot.data$Seed)
+    plot.data.rug <- plot.data.env.fact$plot.data.rug
+
+    # Select seed if no analysis of randomness
+    if(!ice.random){
+      plot.data <- filter(plot.data, plot.data$Seed == 2021)
+    }
+    
+    p <- ggplot(plot.data, aes(x = variable, y = lines))
+    if(ice.random){
+      p <- p + geom_line(aes(color = Seed), alpha = 0.7, size = 1) # remove legend that would be the number of samples
+    } else {
+      p <- p + geom_line(aes(color = Model), alpha = 0.7, size = 1) # remove legend that would be the number of samples
+      p <- p + scale_colour_manual(values=names(list.models))
+    }
+    p <- p + geom_rug(data = plot.data.rug,
+                      aes(x = variable), 
+                      color = "grey20", alpha = 0.7, inherit.aes = F)
+    if(ODG & name.fact == "Temperature"){
+      split.value <- max(plot.data.rug[,"variable"])
+      p <- p + geom_vline(xintercept = split.value, linetype='dashed', col = 'grey30')
+    }
+    if(ice.random){
+      p <- p + facet_wrap(~ Model, strip.position = "top", ncol = 2)
+    }
+    p <- p + theme_bw(base_size = 10)
+    p <- p + theme(strip.background = element_rect(fill = "white"))
+    p <- p + labs(title = paste("Overlapped", title, "for", name.taxon), # paste(l),
+                  x = name.fact,
+                  y = "Predicted probability of occurrence")
+    # p
+    return(p)
+  }
+  
+  list.plots <- lapply(ice.plot.data.taxon, plot.overlapped.pdp.per.env.fact, list.models, ice.random, means)
   
   return(list.plots)
 }
@@ -808,3 +866,54 @@ plot.rs.taxa <- function(taxa, outputs, list.models, normalization.data, env.fac
   return(list.plots)
   
 }
+
+plot.maps.models.pred <- function(df.models.pred, inputs, list.models){
+  
+  plot.data <- df.models.pred
+  name.taxon <- gsub("Occurrence.", "", colnames(plot.data)[which(grepl("Occurrence.", colnames(plot.data)))])
+  
+  # Reorder model factor levels to have right order on panel
+  plot.data <- plot.data %>%
+    mutate(across(Model, factor, levels=list.models))
+  
+  # Map geometries
+  g <- ggplot()
+  g <- g + geom_sf(data = inputs$ch, fill=NA, color="black")
+  g <- g + geom_sf(data = inputs$rivers.major, fill=NA, color="lightblue", show.legend = FALSE)
+  g <- g + geom_sf(data = inputs$lakes.major, fill="lightblue", color="lightblue", show.legend = FALSE)
+  g <- g + geom_point(data = plot.data, aes(X, Y, size = present, 
+                                            color = Observation), 
+                      alpha = 0.7)
+  g <- g + facet_wrap(~ Model, strip.position="top", ncol = 2)
+  
+  # Configure themes and labels
+  g <- g + theme_void()
+  g <- g + theme(plot.title = element_text(size = 16),#, hjust = 0.5),
+                 panel.grid.major = element_line(colour="transparent"),
+                 plot.margin = unit(c(0.1,0.1,0.1,0.1), "lines"),
+                 legend.title = element_text(size=14))
+  
+  g <- g + labs(title = paste("Geographic distribution of models prediction for", name.taxon),
+                x = "",
+                y = "",
+                size = "Probability of\noccurrence",
+                color = "Observation")
+  
+  # Configure legends and scales
+  g <- g + guides(size = guide_legend(override.aes = list(color="black", stroke=0), order=1),
+                  # alpha = guide_legend(override.aes = list(size=6, shape=c(19,21), stroke=c(0,0.75), color="black"), order=2),
+                  color = guide_legend(override.aes = list(size=6, stroke=0), order=3))
+  g <- g + scale_size(range = c(1,3.5))
+  g <- g + scale_color_manual(values=c(absent = "#c2141b", present = "#007139"), labels=c("Absence", "Presence"))
+  g <- g + scale_shape_identity() # Plot the shape according to the data
+  
+  return(g)
+}
+  
+  
+  
+  
+  
+  
+  
+  
