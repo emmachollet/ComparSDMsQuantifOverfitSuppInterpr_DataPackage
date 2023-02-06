@@ -24,7 +24,7 @@ graphics.off() # clean graphics display
 BDM <- F # select dataset, "All" or only "BDM" monitoring programs
 file.prefix <- ifelse(BDM, "BDM_", "All_")
 
-CV <- T              # train for cross-validation (CV)
+CV <- F              # train for cross-validation (CV)
 ODG <- ifelse(CV, F, # if CV = T, no out-of-domain generalization (ODG)
                   F  # train for out-of-domain generalization (ODG)
                   )  # if CV = F and ODG = F, train on whole dataset (FIT)
@@ -893,16 +893,34 @@ if(CV | !ODG){
 }
 
 if(CV){
-  list.df.models.pred <- make.list.models.pred(outputs.cv = outputs.cv, list.taxa = select.taxa, list.models = list.models)
+  select.models <- c("Null Model", list.models[7])
+  temp.select.taxa <- select.taxa
+  list.df.models.pred <- make.list.models.pred(outputs.cv = outputs.cv, list.taxa = temp.select.taxa, list.models = list.models, prev.inv = prev.inv)
 
-  list.plots <- lapply(list.df.models.pred, FUN = plot.maps.models.pred, inputs = inputs, list.models = list.models)
+  list.plots <- lapply(list.df.models.pred, FUN = plot.maps.models.pred, inputs = inputs, select.models = select.models)
   file.name <- "MapsModelsPrediction"
-  print.pdf.plots(list.plots = list.plots, width = 8.3, height = 11.7, # A4 format in inches 
+  if(length(select.models) != length(list.models)){
+    file.name <- paste0(file.name, "_", length(select.models), "SelectMod")
+    width = 10
+    height = 5
+  } else { # A4 format in inches 
+    width = 8.3
+    height = 11.7
+  }
+  if(length(temp.select.taxa) != no.taxa){
+    file.name <- paste0(file.name, "_", length(temp.select.taxa), "SelectTaxa")
+  }
+  print.pdf.plots(list.plots = list.plots, width = width, height = height, 
+                  dir.output = dir.plots.output, 
+                  info.file.name = info.file.name, file.name = file.name,
+                  png = T, png.ratio = 0.5)
+  
+  list.plots <- plot.maps.null.model(inputs = inputs, list.taxa = list.taxa, prev.inv = prev.inv, data = data)
+  file.name <- "MapsNullModel"
+  print.pdf.plots(list.plots = list.plots, width = 6, height = 4, 
                   dir.output = dir.plots.output, 
                   info.file.name = info.file.name, file.name = file.name,
                   png = F)
-  
-  # plot also null model on map 
 }
 
 source("utilities.r")

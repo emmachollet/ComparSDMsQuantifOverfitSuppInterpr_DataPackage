@@ -867,14 +867,16 @@ plot.rs.taxa <- function(taxa, outputs, list.models, normalization.data, env.fac
   
 }
 
-plot.maps.models.pred <- function(df.models.pred, inputs, list.models){
+plot.maps.models.pred <- function(df.models.pred, inputs, select.models = list.models){
   
+  # df.models.pred <- list.df.models.pred[[1]]
   plot.data <- df.models.pred
   name.taxon <- gsub("Occurrence.", "", colnames(plot.data)[which(grepl("Occurrence.", colnames(plot.data)))])
   
   # Reorder model factor levels to have right order on panel
+  plot.data <- filter(plot.data, Model %in% select.models)
   plot.data <- plot.data %>%
-    mutate(across(Model, factor, levels=list.models))
+    mutate(across(Model, factor, levels = select.models))
   
   # Map geometries
   g <- ggplot()
@@ -888,10 +890,10 @@ plot.maps.models.pred <- function(df.models.pred, inputs, list.models){
   
   # Configure themes and labels
   g <- g + theme_void()
-  g <- g + theme(plot.title = element_text(size = 16),#, hjust = 0.5),
+  g <- g + theme(plot.title = element_text(size = 14, vjust = 10),
                  panel.grid.major = element_line(colour="transparent"),
-                 plot.margin = unit(c(0.1,0.1,0.1,0.1), "lines"),
-                 legend.title = element_text(size=14))
+                 plot.margin = unit(c(1,1,1,1), "lines"),
+                 legend.title = element_text(size=12))
   
   g <- g + labs(title = paste("Geographic distribution of models prediction for", name.taxon),
                 x = "",
@@ -903,15 +905,56 @@ plot.maps.models.pred <- function(df.models.pred, inputs, list.models){
   g <- g + guides(size = guide_legend(override.aes = list(color="black", stroke=0), order=1),
                   # alpha = guide_legend(override.aes = list(size=6, shape=c(19,21), stroke=c(0,0.75), color="black"), order=2),
                   color = guide_legend(override.aes = list(size=6, stroke=0), order=3))
-  g <- g + scale_size(range = c(1,3.5))
+  g <- g + scale_size(range = c(0.3,1.5))
   g <- g + scale_color_manual(values=c(absent = "#c2141b", present = "#007139"), labels=c("Absence", "Presence"))
   g <- g + scale_shape_identity() # Plot the shape according to the data
   
   return(g)
 }
   
-  
-  
+# plot.maps.null.model <- function(inputs, list.taxa, prev.inv, data){
+#   
+#   list.plots <- lapply(list.taxa, function(taxon){
+#     # taxon <- list.taxa[1]
+#     name.taxon <- gsub("Occurrence.", "", taxon)
+#     prev.taxon <- prev.inv[which(prev.inv$Occurrence.taxa == taxon), "Prevalence"]
+#     observ.taxon <- data[,c("X", "Y", taxon)]
+#     observ.taxon$Observation <- ifelse(observ.taxon[,taxon] == 1, "present", "absent" )
+#     
+#     # Map geometries
+#     g <- ggplot()
+#     g <- g + geom_sf(data = inputs$ch, fill=NA, color="black")
+#     g <- g + geom_sf(data = inputs$rivers.major, fill=NA, color="lightblue", show.legend = FALSE)
+#     g <- g + geom_sf(data = inputs$lakes.major, fill="lightblue", color="lightblue", show.legend = FALSE)
+#     g <- g + geom_point(data = observ.taxon, aes(X, Y, color = Observation), 
+#                         alpha = 0.7, size = prev.taxon)
+#     # g <- g + facet_wrap(~ Model, strip.position="top", ncol = 2)
+#     
+#     # Configure themes and labels
+#     g <- g + theme_void()
+#     g <- g + theme(plot.title = element_text(size = 16),#, hjust = 0.5),
+#                    panel.grid.major = element_line(colour="transparent"),
+#                    plot.margin = unit(c(0.1,0.1,0.1,0.1), "lines"),
+#                    legend.title = element_text(size=14))
+#     
+#     g <- g + labs(title = paste("Geographic distribution of null model for", name.taxon, "\nPrevalence:", round(prev.taxon, digits = 2)),
+#                   x = "",
+#                   y = "",
+#                   color = "Observation")
+#     
+#     # Configure legends and scales
+#     g <- g + guides(size = guide_legend(override.aes = list(color="black", stroke=0), order=1),
+#                     # alpha = guide_legend(override.aes = list(size=6, shape=c(19,21), stroke=c(0,0.75), color="black"), order=2),
+#                     color = guide_legend(override.aes = list(size=6, stroke=0), order=3))
+#     g <- g + scale_size(range = c(0.5,1.5))
+#     g <- g + scale_color_manual(values=c(absent = "#c2141b", present = "#007139"), labels=c("Absence", "Presence"))
+#     g <- g + scale_shape_identity() # Plot the shape according to the data
+#     return(g)
+#   })
+#   
+#   return(list.plots)
+#   
+# }
   
   
   

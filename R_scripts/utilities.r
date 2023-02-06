@@ -646,13 +646,14 @@ perf.plot.data <- function(list.df.perf){
 }
 
 # Make list of models prediction during CV for each taxon
-make.list.models.pred <- function(outputs.cv, list.taxa, list.models){
+make.list.models.pred <- function(outputs.cv, list.taxa, list.models, prev.inv){
   
   list.df.models.pred <- vector(mode = "list", length = length(list.taxa))
   names(list.df.models.pred) <- list.taxa
   
   for(j in list.taxa){
     # j <- list.taxa[1]
+    prev.taxon <- prev.inv[which(prev.inv$Occurrence.taxa == j), "Prevalence"]
     df.models.pred <- data.frame()
     for (l in list.models) {
       # l <- list.models[1]
@@ -671,6 +672,12 @@ make.list.models.pred <- function(outputs.cv, list.taxa, list.models){
       temp.df.pred$Model <- l
       df.models.pred <- bind_rows(df.models.pred, temp.df.pred)
     }
+    temp.df.null.model <- temp.df.pred
+    temp.df.null.model$absent <- 1 - prev.taxon
+    temp.df.null.model$present <- prev.taxon
+    temp.df.null.model$Model <- "Null Model"
+    df.models.pred <- bind_rows(df.models.pred, temp.df.null.model)
+    
     df.models.pred$Observation <- df.models.pred[,j]
     list.df.models.pred[[j]] <- df.models.pred
   }
