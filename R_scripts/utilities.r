@@ -642,6 +642,7 @@ perf.plot.data <- function(list.df.perf){
     plot.data <- bind_rows(plot.data, plot.data5)
   }
   
+  plot.data$model <- gsub("_", " ", plot.data$model)
   return(plot.data)
 }
 
@@ -863,6 +864,25 @@ ice.plot.data <- function(taxon, outputs, ref.data, list.models, list.taxa, env.
                                             "plot.data.means" = plot.data.means, "plot.data.rug" = plot.data.rug)
   }
   return(list.ice.plot.data)
+}
+
+table.summary.pred.perf <- function(df.summary, list.models){
+  
+  name.metrics <- c("auc.pred" = "AUC", "dev.pred" = "Standardize\ndeviance")
+  df.summary.pred.perf <- data.frame()
+  
+  for(n in 1:length(name.metrics)){
+    # n <- 1
+    temp.df <- data.frame("Metric" = rep(name.metrics[n], 3))
+    temp.df$Stat <- c("min", "median", "max")
+    for (l in list.models) {
+      # l <- list.models[1]
+      vect.perf <- t(df.summary[which(df.summary$Variable == paste0(l, ".", names(name.metrics)[n])), c("Min", "Pctl. 50", "Max")])
+      temp.df[,l] <- vect.perf
+    }
+    df.summary.pred.perf <- bind_rows(df.summary.pred.perf, temp.df)
+  }
+  return(df.summary.pred.perf)
 }
 
 # Table 3: Summary statitistics likelihood ratio ####

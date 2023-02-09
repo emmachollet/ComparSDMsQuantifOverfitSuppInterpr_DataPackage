@@ -24,7 +24,7 @@ graphics.off() # clean graphics display
 BDM <- F # select dataset, "All" or only "BDM" monitoring programs
 file.prefix <- ifelse(BDM, "BDM_", "All_")
 
-CV <- F              # train for cross-validation (CV)
+CV <- T              # train for cross-validation (CV)
 ODG <- ifelse(CV, F, # if CV = T, no out-of-domain generalization (ODG)
                   F  # train for out-of-domain generalization (ODG)
                   )  # if CV = F and ODG = F, train on whole dataset (FIT)
@@ -45,7 +45,7 @@ models.analysis <- c(    # comparison analysis of different models structures:
   "ann.hyperparam"  = F, # ANN hyperparameter tuning
   "rf.random"       = F, # sensitivity analysis RF randomness
   "ann.random"      = F, # sensitivity analysis ANN randomness
-  "ice.random"      = T  # analyze random choice of observ. for ICE plots 
+  "ice.random"      = F  # analyze random choice of observ. for ICE plots 
 )
 
 case.compar <- c(     # comparison analysis of models trained on different datasets:
@@ -84,6 +84,7 @@ if ( !require("corrplot") ) { install.packages("corrplot"); library("corrplot") 
 if ( !require("gt") ) { install.packages("gt"); library("gt") }                             # to make tables
 if ( !require("sf") ) { install.packages("sf"); library("sf") }                             # to read layers for plotting maps
 if ( !require("ggpubr") ) { install.packages("ggpubr"); library("ggpubr") }                 # to arrange multiple plots on a page
+if ( !require("svglite") ) { install.packages("svglite"); library("svglite") }              # to produce vector images
 
 # Statistical models
 if ( !require("rstan") ) { install.packages("rstan"); library("rstan") }                    # to run hierarchical models written in Stan
@@ -947,24 +948,23 @@ if(!CV){
   
   for (n in 1:length(temp.select.taxa)) {
     # n = 1
-    # subselect.taxa <- select.taxa[1]
-    # select.env.fact <- env.fact[1:2]
-    
     subselect.taxa <- temp.select.taxa[[n]]
-    names(subselect.taxa) <- gsub("Occurrence.", "", subselect.taxa)
     select.env.fact <- temp.select.env.fact[[n]]
+    # subselect.taxa <- list.taxa[which(list.taxa != "Occurrence.Perlodidae")]
+    # select.env.fact <- env.fact[1]
+    names(subselect.taxa) <- gsub("Occurrence.", "", subselect.taxa)
     
     ## ICE/PDP ####
     
     no.samples <- 100
     no.steps <- 200
     subselect <- 1
-    vect.seeds <- c(1021, 2021, 3021)
+    vect.seeds <- c(2020, 2021, 2022)
     
     file.name <- paste0(dir.workspace, info.file.name, "PlotDataICE_", no.samples, "Samp_",
                         length(subselect.taxa), "SelectTaxa_", length(select.env.fact), "SelectEnvFact", 
                         ifelse(models.analysis["ice.random"], paste0("_RandomAnal", length(vect.seeds), "Seeds"), ""), ".rds")
-    
+    cat(file.name)
     # Produce dataframes for plotting ICE and PDP
     if(file.exists(file.name)){
       list.ice.plot.data <- readRDS(file.name)
@@ -978,6 +978,7 @@ if(!CV){
       saveRDS(list.ice.plot.data, file = file.name)
     }
     
+    # models.analysis["ice.random"] <- F
     list.list.ice.plots <- lapply(list.ice.plot.data, FUN = plot.ice.per.taxa, 
                               list.models = list.models, subselect = subselect, ice.random = models.analysis["ice.random"])
 
@@ -991,8 +992,11 @@ if(!CV){
       print.pdf.plots(list.plots = list.list.ice.plots[[j]], width = 8.3, height = 11.7, # A4 format in inches 
                       dir.output = paste0(dir.plots.output, "ICE/"), 
                       info.file.name = info.file.name, file.name = file.name,
-                      png = T, png.vertical = T, png.ratio = 0.7)
+                      png = F)
+                      # png = T, png.vertical = T, png.ratio = 0.7)
     }
+    ggsave(file = paste0(dir.plots.output, "ICE/", info.file.name, "ICE_", no.samples, "Samp_Gammaridae_", "1EnvFact", ".svg"), 
+           plot = list.list.ice.plots$Gammaridae$Temperature, width = 8.3, height = 11.7)
     
     list.list.overlapped.pdp <- lapply(list.ice.plot.data, FUN = plot.overlapped.pdp, list.models = list.models,
                                        ice.random = models.analysis["ice.random"], means = F)
@@ -1005,15 +1009,16 @@ if(!CV){
         height = 11.7
       } else {
         width = 8
-        height = 4
+        height = 6
       }
       cat("\nPrinting", file.name)
       print.pdf.plots(list.plots = list.list.overlapped.pdp[[j]], width = width, height = height,
                       dir.output = paste0(dir.plots.output, "ICE/"), 
                       info.file.name = info.file.name, file.name = file.name,
-                      png = T, png.square = T, png.ratio = 1.3)
+                      png = F)
     }
-    
+    ggsave(file = paste0(dir.plots.output, "ICE/", info.file.name, "OverlappedPDP_", "Gammaridae_", "1EnvFact", ".svg"), 
+           plot = list.list.overlapped.pdp$Gammaridae$Temperature, width = 6, height = 4)
     
     ## Response shape ####
     

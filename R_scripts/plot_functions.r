@@ -425,7 +425,7 @@ plot.glm.param <- function(outputs, df.perf, list.glm, list.taxa, env.fact.full,
 # Figure 1: Boxplots models performance ####
 plot.boxplots.compar.appcase <- function(plot.data, list.models, models.analysis){
   
-  list.models.temp <- c("#000000" = "Null_model", list.models)
+  list.models.temp <- c("#000000" = "Null model", list.models)
   if(models.analysis["ann.hyperparam"] == T){
     list.models.temp <- gsub("ANN_", "", list.models.temp)
     plot.data$model <- gsub("ANN_", "", plot.data$model)
@@ -436,11 +436,11 @@ plot.boxplots.compar.appcase <- function(plot.data, list.models, models.analysis
   
   app.case <- unique(plot.data$appcase)
   
-  median.null.model <- median(plot.data[which(plot.data$model == "Null_model"), "performance"])
+  median.null.model <- median(plot.data[which(plot.data$model == "Null model"), "performance"])
   median.pred.appcase1 <- vector()
   median.pred.appcase2 <- vector()
   
-  for (l in list.models.temp[which(list.models.temp != "Null_model")]) {
+  for (l in list.models.temp[which(list.models.temp != "Null model")]) {
     median.pred.appcase1[l] <- median(plot.data[which(plot.data$model == l & plot.data$dataset == "Prediction" & plot.data$appcase == app.case[1]), "performance"])
     median.pred.appcase2[l] <- median(plot.data[which(plot.data$model == l & plot.data$dataset == "Prediction" & plot.data$appcase == app.case[2]), "performance"])
   }
@@ -449,11 +449,13 @@ plot.boxplots.compar.appcase <- function(plot.data, list.models, models.analysis
   cat("Best median stand. dev. is:\n", 
       names(median.pred.appcase1)[which(median.pred.appcase1 == median.pred.appcase1.best)], median.pred.appcase1.best, " during ", app.case[1], "\n",
       names(median.pred.appcase2)[which(median.pred.appcase2 == median.pred.appcase2.best)], median.pred.appcase2.best, " during ", app.case[2], "\n")
-  plot.data.median <- data.frame("median" = c(median.pred.appcase1.best, median.pred.appcase2.best), "appcase" = app.case)
+  plot.data.median <- data.frame("median" = c(rep(median.null.model, 2), median.pred.appcase1.best, median.pred.appcase2.best), 
+                                 "appcase" = rep(app.case, 2), 
+                                 "legend" = c(rep("Null model", 2), rep("Best predictive\nperformance", 2)))
   
   plot.data.labels <- data.frame("label" = c("a)", "b)"),
                                  "dataset" = c("Calibration", "Calibration"),
-                                 "model" = c("Null_model", "Null_model"),
+                                 "model" = c("Null model", "Null model"),
                                  "appcase" = app.case)
   
   # Boxplots standardized deviance
@@ -461,14 +463,14 @@ plot.boxplots.compar.appcase <- function(plot.data, list.models, models.analysis
   plot.data1 <- filter(plot.data1, model %in% list.models.temp)
   if(any(models.analysis == TRUE)){
     lev <- names(median.pred.appcase1[order(median.pred.appcase1, decreasing = T)])
-    lev <- c("Null_model", lev)
+    lev <- c("Null model", lev)
   }
   p <- ggplot(plot.data1, aes(x = model, y = performance, fill = dataset))
   p <- p + geom_boxplot()
   p <- p + ylim(0, 1.5) # ECR: because perf problems
-  p <- p + geom_hline(yintercept = median.null.model, linetype='longdash', col = 'black')
-  p <- p + geom_hline(data = plot.data.median, aes(yintercept = median), 
-                      linetype='dotted', col = 'black')
+  p <- p + geom_hline(data = plot.data.median, aes(yintercept = median, colour = legend), 
+                      size = 1, alpha = 0.6)
+  p <- p + scale_color_manual(values = c("Null model" = "dodgerblue", "Best predictive\nperformance" = "green3"))
   p <- p + scale_fill_manual(values=c(Calibration = "#998ec3", Prediction = "#f1a340"))
   if(any(models.analysis == TRUE)){
     p <- p + scale_x_discrete(limits = lev)
@@ -485,12 +487,14 @@ plot.boxplots.compar.appcase <- function(plot.data, list.models, models.analysis
                       # labeller=label_parsed, 
                       strip.position= ifelse(any(models.analysis == T), "top", "right"))
   p <- p + theme(legend.text = element_text(size=22),
-                 strip.background = element_rect(fill = "white"))
+                 strip.background = element_rect(fill = "white"),
+                 plot.margin = unit(c(1,1,1,1), "lines"))
   p <- p + labs(x="Model",
-                  y="Standardized deviance",
-                  fill = "",
-                  # title = "Model performance comparison")
-                  title = "")
+                y="Standardized deviance",
+                fill = "",
+                colour = "Median",
+                # title = "Model performance comparison")
+                title = "")
   # p
   
   # Boxplots auc
@@ -529,7 +533,7 @@ plot.perfvsprev.compar.appcase <- function(plot.data, list.models, list.taxa){
   list.models.temp <- list.models
   col.vect.temp <- names(list.models)
   names(col.vect.temp) <- list.models
-  list.models <- c("#000000" = "Null_model", list.models)
+  list.models <- c("#000000" = "Null model", list.models)
   ex.taxa <- c("Psychodidae", "Gammaridae")
   
   # Make a vector of colors
@@ -539,6 +543,9 @@ plot.perfvsprev.compar.appcase <- function(plot.data, list.models, list.taxa){
   no.taxa <- length(list.taxa)
   
   plot.data$Prevalence <- plot.data$Prevalence*100
+  prev.taxon1 <- plot.data$Prevalence[which(grepl(ex.taxa[1], plot.data$Taxa))[1]]
+  prev.taxon2 <- plot.data$Prevalence[which(grepl(ex.taxa[2], plot.data$Taxa))[1]]
+  
   
   # Prevalence vs stand dev
   plot.data1 <- filter(plot.data, dataset %in% c("Calibration", "Prediction"))
@@ -549,6 +556,7 @@ plot.perfvsprev.compar.appcase <- function(plot.data, list.models, list.taxa){
   plot.data.select.taxa <- data.frame("taxon" = ex.taxa,
                                       "dataset" = c("Prediction","Prediction"),
                                       "appcase" = c(app.case[1], app.case[1]))
+  # plot.data.vert.lines <- data.frame(xintercept = rep(c(prev.taxon1, prev.taxon2),)
   p <- ggplot()
   p <- p  + geom_point(data = plot.data1, aes_string(x = "Prevalence", y = "performance", 
                                                       colour = "model"), alpha = 0.8,
@@ -559,6 +567,8 @@ plot.perfvsprev.compar.appcase <- function(plot.data, list.models, list.taxa){
   p <- p + ylim(0, 1.6) # ECR: only because perf problems
   p <- p + geom_hline(yintercept = plot.data[select.taxa[1], "Prevalence"], linetype='dashed', col = 'grey30')
   p <- p + stat_function(fun=function(x) -2*(x/100*log(x/100) + (1-x/100)*log(1-x/100))) # to plot null model as function line
+  p <- p + geom_vline(xintercept = prev.taxon1, linetype='dashed', col = 'grey30')
+  p <- p + geom_vline(xintercept = prev.taxon2, linetype='dashed', col = 'grey30')
   p <- p + theme_bw(base_size = 20)
   if(length(app.case) != 1){
     p <- p + facet_grid(appcase ~ dataset)
@@ -638,6 +648,7 @@ plot.ice.per.taxa <- function(ice.plot.data.taxon, list.models, subselect, ice.r
       plot.data <- filter(plot.data, plot.data$Seed == 2021)
       plot.data.mean.pdp <- filter(plot.data.mean.pdp, plot.data.mean.pdp$Seed == 2021)
       plot.data.means <- filter(plot.data.means, plot.data.means$Seed == 2021)
+      plot.data.min.max.pdp <- filter(plot.data.min.max.pdp, plot.data.min.max.pdp$Seed == 2021)
     }
     
     # Reorder model factor levels to have right order on panel
@@ -648,6 +659,8 @@ plot.ice.per.taxa <- function(ice.plot.data.taxon, list.models, subselect, ice.r
     plot.data.mean.pdp <- plot.data.mean.pdp %>%
       mutate(across(Model, factor, levels=list.models))
     plot.data.rug <- plot.data.rug %>%
+      mutate(across(Model, factor, levels=list.models))
+    plot.data.min.max.pdp <- plot.data.min.max.pdp %>%
       mutate(across(Model, factor, levels=list.models))
     
     p <- ggplot(plot.data, aes(x = variable, y = value, group=factor(observation))) 
