@@ -469,8 +469,8 @@ plot.boxplots.compar.appcase <- function(plot.data, list.models, models.analysis
   p <- p + geom_boxplot()
   p <- p + ylim(0, 1.5) # ECR: because perf problems
   p <- p + geom_hline(data = plot.data.median, aes(yintercept = median, colour = legend), 
-                      size = 1, alpha = 0.6)
-  p <- p + scale_color_manual(values = c("Null model" = "dodgerblue", "Best predictive\nperformance" = "green3"))
+                      size = 1, alpha = 0.7)
+  p <- p + scale_color_manual(values = c("Null model" = "#0C6FA6", "Best predictive\nperformance" = "#14A639"))
   p <- p + scale_fill_manual(values=c(Calibration = "#998ec3", Prediction = "#f1a340"))
   if(any(models.analysis == TRUE)){
     p <- p + scale_x_discrete(limits = lev)

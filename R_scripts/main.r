@@ -24,9 +24,9 @@ graphics.off() # clean graphics display
 BDM <- F # select dataset, "All" or only "BDM" monitoring programs
 file.prefix <- ifelse(BDM, "BDM_", "All_")
 
-CV <- T              # train for cross-validation (CV)
+CV <- F              # train for cross-validation (CV)
 ODG <- ifelse(CV, F, # if CV = T, no out-of-domain generalization (ODG)
-                  F  # train for out-of-domain generalization (ODG)
+                  T  # train for out-of-domain generalization (ODG)
                   )  # if CV = F and ODG = F, train on whole dataset (FIT)
 
 ODG.info <- c(training.ratio = 0.8,     # ratio of data used for calibration in ODG
@@ -334,7 +334,7 @@ list.hyper.param <- vector("list", no.hyperparam)
 
 if(no.hyperparam == 1){ # fixed hyperparameters
   if(models.analysis["ann.random"]){
-    no.ann.runs = 10 # number of runs to do randomness sensitivity analysis
+    no.ann.runs = 5 # number of runs to do randomness sensitivity analysis
     for (n in 1:no.ann.runs) {
       list.hyper.param[[n]] <- grid.hyperparam[1,]
       names(list.hyper.param)[n] <- paste0("ANN_rand", n)
@@ -380,7 +380,7 @@ null.model <- apply.null.model(data = data, list.taxa = list.taxa)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-if(!models.analysis["ann.hyperparam"]){
+if(!models.analysis["ann.hyperparam"] & !models.analysis["ann.random"] ){
 
 ## Statistical models ####
 
@@ -684,7 +684,7 @@ if(CV | ODG){
 }
 
 # remove(temp.outputs)
-if(exists("outputs")){  
+if(exists("outputs") | exists("outputs.cv")){  
   # Make sure list.models match with models output
   if(CV|ODG){
     vec1 <- names(outputs.cv$Split1)
@@ -747,6 +747,12 @@ file.name <- paste(dir.workspace, info.file.name, "TableSummaryStat", ".csv", se
 cat(file.name)
 df.summary <- sumtable(df.results, add.median = TRUE, out='return')
 write.table(df.summary, file.name, sep=",", row.names=F, col.names=TRUE)
+
+# Nice table AUC and stand. dev. predictive performance during CV
+file.name <- paste(dir.workspace, info.file.name, "TableSummaryStat_PredPerf", ".csv", sep="")
+cat(file.name)
+df.summary.pred.perf <- table.summary.pred.perf(df.summary = df.summary, list.models = list.models)
+write.table(df.summary.pred.perf, file.name, sep=",", row.names=F, col.names=TRUE)
 
 # Standardized deviance
 df.stand.dev <-  df.results[,c(which(colnames(df.results) %in% c("Taxa", "Prevalence")), which(grepl("dev.pred", colnames(df.results)) & !grepl("expl.pow", colnames(df.results))))]
@@ -836,6 +842,9 @@ if(exists("df.perf1")){
 cat("\nPlots will be produce for the following application cases:", names(list.df.perf),
     "\nList of selected taxa:", sub("Occurrence.", "", select.taxa), "\n\n")
 
+source("utilities.r")
+source("plot_functions.r")
+
 if(length(list.df.perf) != 1){
   
   # Prepare data for plots 
@@ -852,7 +861,7 @@ if(length(list.df.perf) != 1){
   } else { 
     temp.info.file.name <- info.file.name 
   }
-  print.pdf.plots(list.plots = list.plots, width = 15, height = ifelse(any(models.analysis == TRUE), 21, 8), 
+  print.pdf.plots(list.plots = list.plots, width = 18, height = ifelse(any(models.analysis == TRUE), 21, 10), 
                   dir.output = dir.plots.output, info.file.name = temp.info.file.name, file.name = file.name, 
                   png = TRUE, png.vertical = ifelse(any(models.analysis == TRUE), T, F), png.ratio = 1.2)
   

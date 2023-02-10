@@ -642,7 +642,7 @@ perf.plot.data <- function(list.df.perf){
     plot.data <- bind_rows(plot.data, plot.data5)
   }
   
-  plot.data$model <- gsub("_", " ", plot.data$model)
+  plot.data$model <- ifelse(plot.data$model == "Null_model", "Null model", plot.data$model)
   return(plot.data)
 }
 
