@@ -868,7 +868,7 @@ ice.plot.data <- function(taxon, outputs, ref.data, list.models, list.taxa, env.
 
 table.summary.pred.perf <- function(df.summary, list.models){
   
-  name.metrics <- c("auc.pred" = "AUC", "dev.pred" = "Standardize\ndeviance")
+  name.metrics <- c("dev.pred" = "Standardize\ndeviance", "auc.pred" = "AUC")
   df.summary.pred.perf <- data.frame()
   
   for(n in 1:length(name.metrics)){

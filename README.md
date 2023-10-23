@@ -1,15 +1,15 @@
-# A comparison of machine learning and statistical species distribution models applied to freshwater macroinvertebrates in Swiss rivers
+# Data package - "A comparison of machine learning and statistical species distribution models applied to freshwater macroinvertebrates in Swiss rivers"
 
 **Background**
 
-This data package provides the data, scripts and plots needed to produce the results of the manuscript *"A comparison of machine learning and statistical species distribution models: when overfitting hurts interpretation"* (submitted to *Ecological Modelling*, Dec 2022).
+This data package provides the data, scripts and plots needed to produce the results of the manuscript *["A comparison of machine learning and statistical species distribution models: quantifying overfitting supports model interpretation"](https://www.sciencedirect.com/science/article/pii/S0304380023000819?via%3Dihub)* (submitted to *Ecological Modelling*, Dec 2022).
 
 **Overview**
 
-In this study, we apply eight statistical and machine learning models with different complexity to predict the probability of occurrence of freshwater macroinvertabrates in Swiss rivers using nine environmental factors as explanatory variables. We compare the models in terms of predictive performance, overfitting degree and inferred response shape, during cross-validation (CV), for out-of-domain generalization (ODG, also called "extrapolation") and when applied to the entire dataset (FIT). 
+In this study, we apply eight statistical and machine learning models with different complexity to predict the probability of occurrence of freshwater macroinvertabrates in Swiss rivers using nine environmental factors as explanatory variables. We compare the models in terms of predictive performance, overfitting degree and inferred response shape, during cross-validation (CV), for out-of-domain generalization (ODG, also called "extrapolation") and when fit to the entire dataset (FIT). 
 
 *Authors:* Emma Chollet Ramampiandra (ECR), Andreas Scheidegger (AS), Jonas Wydler (JW), Nele Schuwirth (NS)
-*Correspondence:* emma.chollet@eawag.ch
+*Correspondence:* <emma.chollet@eawag.ch>
 
 -----------------------------------------------------------------------------------------------------------------------------------
 
@@ -25,7 +25,9 @@ The input data is already pre-processed (pre-processing information available up
 
 **Main script** (Directory: *R_scripts*/*)
 
-- `main.r` : Set up options for all analysis (CV, ODG or FIT). Automatically instal all R packages in the right version using `checkpoint` package. Read in input data. Split the data and standardize the environmental factors. Define all models. Train all models. Save models outputs. Process all results and produce plots and tables.
+Set the working directory where the main script is.
+
+- `main.r` : Set up options for all analysis (CV, ODG or FIT). Automatically install all R packages in the right version using `checkpoint` package (with date 2022-01-01). Read in input data. Split the data and standardize the environmental factors. Define all models. Train all models. Save models outputs. Process all results and produce plots and tables.
 
 **Utilities** (Directory: *R_scripts*/*)
 
@@ -37,20 +39,20 @@ The input data is already pre-processed (pre-processing information available up
 
 **Input data** (Directory: *Input_data*/*)
 
-- */Swiss.map.gdb/* * : GDB files for plotting rivers and lake on Swiss map.
+- *Swiss.map.gdb*/* : GDB files for plotting rivers and lake on Swiss map.
 - *All_2729samples_9envfact_lme.area.elev_ModelInputs.csv* : Models input data (2729 observations of presence [1] and absence [0] of 60 taxa and calculation of nine environmental factors).
 - *All_2729samples_9envfact_lme.area.elev_PrevalenceTaxa.csv* : Information on prevalence and taxonomic level of the 60 taxa.
 
 **Output data** (Directory: *Output_data*/*)
 
-- */Trained_models/* * : RDS files of trained models (too heavy to be loaded in the repository, can be reproduced or available upon request).
-- */Tables/* * : RDS files of splits used to train models druing CV and ODG. CSV of models results in tables.
+- *Trained_models/*\* : RDS files of trained models (too heavy to be loaded in the repository, can be reproduced or available upon request).
+- *Tables/*\* : RDS files of splits used to train models druing CV and ODG, and model results to plot ICE. CSV of model results in tables.
 
-**Plots** (Directory: *Plots*/*)
+**Plots** (Directory: *Plots/*\*)
 
-- */Explorative_plots/* * : PDF and PNG of plots of distribution of sites and environmental factors in Switzerland and in the entire dataset.
-- */Models_analysis_plots/* * : PDF and PNG of boxplots, performance against prevalence and other models analysis plots.
-- */Models_analysis_plots/* ICE/* : PDF and PNG of Individual Conditional Expectation (ICE) and Partial Dependance Plots (PDP) per taxon.
+- *Explorative_plots/*\* : PDF and PNG of plots of distribution of sites and environmental factors in Switzerland and in the entire dataset.
+- *Models_analysis_plots/*\* : PDF and PNG of boxplots, performance against prevalence and other models analysis plots.
+- *Models_analysis_plots/ICE/*\* : PDF and PNG of Individual Conditional Expectation (ICE) and Partial Dependance Plots (PDP) per taxon.
 
 -----------------------------------------------------------------------------------------------------------------------------------
 

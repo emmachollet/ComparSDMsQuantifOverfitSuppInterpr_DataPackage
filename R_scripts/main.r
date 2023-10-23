@@ -26,7 +26,7 @@ file.prefix <- ifelse(BDM, "BDM_", "All_")
 
 CV <- F              # train for cross-validation (CV)
 ODG <- ifelse(CV, F, # if CV = T, no out-of-domain generalization (ODG)
-                  T  # train for out-of-domain generalization (ODG)
+                  F  # train for out-of-domain generalization (ODG)
                   )  # if CV = F and ODG = F, train on whole dataset (FIT)
 
 ODG.info <- c(training.ratio = 0.8,     # ratio of data used for calibration in ODG
@@ -142,7 +142,9 @@ inputs    <- map.inputs(directory = paste0(dir.input.data,"Swiss.map.gdb"), data
 # DATA WRANGLING ####
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-## Select env. factors ####
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Select env. factors and taxa ####
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # Select temperature of interest
 print(colnames(data)[which(grepl("temperature", colnames(data)))])
@@ -174,9 +176,9 @@ no.env.fact <- length(env.fact)
 # Select sites (categorical) information to keep for analysis
 vect.info <- c("Region", "RiverBasin", "BIOGEO")
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+# ~~~~~~~~~~~~~~~~~~~~~
 ## Preprocess data ####
+# ~~~~~~~~~~~~~~~~~~~~~
 
 # Select list of taxa
 list.taxa <- colnames(data)[which(grepl("Occurrence.", colnames(data)))]
@@ -225,22 +227,17 @@ standardized.data.factors <- stand.norm.data$standardized.data.factors
 normalization.data <- stand.norm.data$normalization.data
 remove(stand.norm.data)
 
-# Fig. SI A 2: analysis splits ####
+# ~~~~~~~~~~~~~~~~~~~~~~~~~
+## Plots data analysis ####
+# ~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# Fig. SI A 2, 4-6: analysis splits ####
 file.name <- paste0("_AnalysisSplits_", train.info, ifelse(ODG, paste0("_by", ODG.info["model"],""), ""))
 if(!file.exists(paste0(dir.expl.plots.output, info.file.name.data, file.name, ".pdf"))){
   list.plots <- analysis.splits(inputs = inputs, splits = splits, env.fact = env.fact, vect.info = vect.info)
   cat("Printing PDF and PNG\n")
-  print.pdf.plots(list.plots = list.plots, width = 15, height = 8, dir.output = dir.expl.plots.output, info.file.name = info.file.name.data, file.name = file.name, png = T, png.ratio = 0.8)
-}
-
-# Fig. SI X X: maps env. fact ####
-file.name <- "_MapsEnvFact"
-list.env.fact <- mapply(c, env.fact, names(env.fact), SIMPLIFY = FALSE)
-if(!file.exists(paste0(dir.expl.plots.output, info.file.name.data, file.name, ".pdf"))){
-  list.plots <- maps.env.fact(inputs = inputs, list.env.fact = list.env.fact, data = data)
-  cat("Printing PDF\n")
-  print.pdf.plots(list.plots = list.plots, width = 15, height = 15, dir.output = dir.expl.plots.output, info.file.name = info.file.name.data, file.name = file.name, 
-                  png = T,  png.ratio = 1)
+  print.pdf.plots(list.plots = list.plots, width = 15, height = 8, dir.output = dir.expl.plots.output, info.file.name = info.file.name.data, file.name = file.name, 
+                  png = T, png.ratio = 0.8)
 }
 
 # Fig. SI A 3: correlation matrix ####
@@ -249,7 +246,17 @@ if(!file.exists(paste0(file.name,".pdf"))){
   pdf.corr.mat.env.fact(data = data, env.fact = env.fact, file.name = file.name)
 }
 
-# Fig. SI A 9: prevalence analysis ####
+# Fig. SI A 7-15: maps env. fact ####
+file.name <- "_MapsEnvFact"
+list.env.fact <- mapply(c, env.fact, names(env.fact), SIMPLIFY = FALSE)
+if(!file.exists(paste0(dir.expl.plots.output, info.file.name.data, file.name, ".pdf"))){
+  list.plots <- maps.env.fact(inputs = inputs, list.env.fact = list.env.fact, data = data)
+  cat("Printing PDF\n")
+  print.pdf.plots(list.plots = list.plots, width = 15, height = 8, dir.output = dir.expl.plots.output, info.file.name = info.file.name.data, file.name = file.name, 
+                  png = T,  png.ratio = 0.8)
+}
+
+# Fig. SI A 18: prevalence analysis ####
 file.name <- paste0("_AnalysisPrevalence_", train.info, ifelse(ODG, paste0("_by", ODG.info["model"],""), ""))
 if(!file.exists(paste0(dir.expl.plots.output, info.file.name.data, file.name, ".pdf")) & !CV){
   list.plots <- analysis.prevalence(prev.inv = prev.inv, splits = splits, ODG = ODG)
@@ -259,12 +266,11 @@ if(!file.exists(paste0(dir.expl.plots.output, info.file.name.data, file.name, ".
 }
 
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+# ~~~~~~~~~~~~~~~~~~~
 ## Select models ####
-# Already select the colors assigned to each model for the plots
+# ~~~~~~~~~~~~~~~~~~~
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Already select the colors assigned to each model for the plots
 
 # Statistical models
 list.stat.mod <-  c(
@@ -380,112 +386,116 @@ null.model <- apply.null.model(data = data, list.taxa = list.taxa)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+# apply stat and ml only if not doing ann analysis
 if(!models.analysis["ann.hyperparam"] & !models.analysis["ann.random"] ){
 
-## Statistical models ####
-
-ptm <- proc.time() # to calculate time of simulation
-
-stat.outputs <- mclapply(comm.corr.options, mc.cores = n.cores.stat.models, function(comm.corr){
-  
-  # comm.corr <- comm.corr.options[[1]]
-  model.name <- ifelse(comm.corr, list.stat.mod[2], list.stat.mod[1])
-  info.file.stat.name <- paste0("Stat_model_",
-                                model.name, "_",
-                                stat.iterations,"iterations_",
-                                info.file.name.models)
-
-  file.name <- paste0(dir.models.output, info.file.stat.name, ".rds")
-  # cat(file.name)
-
-  # If the file with the output already exist, just read it
-  if (file.exists(file.name)){
-      if(!exists("stat.output")){
-          cat("\nFile with statistical model output already exists, we read it from:\n", file.name, "\nand save it in object 'stat.output'.\n")
-          stat.output <- readRDS(file = file.name)
+    # ~~~~~~~~~~~~~~~~~~~~~~~~
+    ## Statistical models ####
+    # ~~~~~~~~~~~~~~~~~~~~~~~~
+        
+    ptm <- proc.time() # to calculate time of simulation
+    
+    stat.outputs <- mclapply(comm.corr.options, mc.cores = n.cores.stat.models, function(comm.corr){
+      
+      # comm.corr <- comm.corr.options[[1]]
+      model.name <- ifelse(comm.corr, list.stat.mod[2], list.stat.mod[1])
+      info.file.stat.name <- paste0("Stat_model_",
+                                    model.name, "_",
+                                    stat.iterations,"iterations_",
+                                    info.file.name.models)
+    
+      file.name <- paste0(dir.models.output, info.file.stat.name, ".rds")
+      # cat(file.name)
+    
+      # If the file with the output already exist, just read it
+      if (file.exists(file.name)){
+          if(!exists("stat.output")){
+              cat("\nFile with statistical model output already exists, we read it from:\n", file.name, "\nand save it in object 'stat.output'.\n")
+              stat.output <- readRDS(file = file.name)
+              }
+          else{
+              cat("\nList with statistical model output already exists as object 'stat.output' in this environment.\n")
           }
-      else{
-          cat("\nList with statistical model output already exists as object 'stat.output' in this environment.\n")
-      }
-  } else {
-      cat("\nNo statistical model output exist yet, we produce it and save it in", file.name)
-      if(CV|ODG){
-        stat.output <- mclapply(standardized.data, mc.cores = n.cores.splits, FUN = stat_mod_cv, CV, ODG, model.name, comm.corr, stat.iterations, n.chain, list.taxa, env.fact.full)
-        cat("\nSaving output of statistical models in:\n", file.name)
-        saveRDS(stat.output, file = file.name, version = 2) #version two here is to ensure compatibility across R versions
-
       } else {
-        stat.output <- stat_mod_cv(standardized.data, CV, ODG, model.name, comm.corr, stat.iterations, n.chain, list.taxa, env.fact.full)
-        cat("\nSaving output of statistical models in\n", file.name)
-        saveRDS(stat.output, file = file.name, version = 2)
-        }
-
-  }
-  return(stat.output)
-})
-
-# Process output from stat models to fit structure of ml models (makes plotting easier)
-stat.outputs.transformed <- transfrom.stat.outputs(stat.outputs = stat.outputs, list.taxa = list.taxa, CV = CV, ODG = ODG)
-
-print(paste("\nSimulation time of statistical model "))
-print(proc.time()-ptm)
-
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-## ML ####
-
-ptm <- proc.time() # to calculate time of simulation
-
-# Split computation of ML algorithm, because it' too heavy to read in
-if(CV|ODG){ temp.list.algo <- list(list.algo[1:3], list.algo[4:length(list.algo)])
-} else { temp.list.algo <- list(list.algo) }
-temp.outputs <- list()
-
-for (n in 1:length(temp.list.algo)) {
-  # n = 1
-  info.file.ml.name <-  paste0("ML_models_",
-                               paste0(paste(temp.list.algo[[n]], collapse = "_"), "_"),
-                               info.file.name.models
-                               )
-  
-  file.name <- paste0(dir.models.output, info.file.ml.name, ".rds")
-
-  if(file.exists(file.name)){
-    cat("\nThe file already exists:\n", file.name, "\nReading it and uploading it in the environment.\n")
-    if(CV | ODG){ temp.outputs[[n]] <- readRDS(file = file.name)
-    } else { temp.outputs[[n]] <- readRDS(file = file.name) }
-  } else {
-    cat("\nNo ML outputs exist yet, we run the models and save the results in:\n", file.name)
-    if(CV|ODG){
-        if(server){
-          # Compute three splits in parallel (should be run on the server)
-          temp.outputs[[n]] <- mclapply(standardized.data.factors, mc.cores = n.cores.splits,
-                                   FUN = apply.ml.model, tune.grid = NULL, temp.list.algo[[n]], list.taxa, env.fact, env.fact.full, CV, ODG, prev.inv = prev.inv)
-        } else {
-          # Compute one split after the other
-          temp.outputs[[n]] <- lapply(standardized.data.factors, FUN = apply.ml.model, tune.grid = NULL, temp.list.algo[[n]], list.taxa, env.fact, env.fact.full, CV, ODG, prev.inv = prev.inv)
-        }
-        cat("\nSaving outputs of algorithms in:\n", file.name)
-        saveRDS(temp.outputs[[n]], file = file.name, version = 2)
-      } else {
-        splitted.data <- list("Training data" =  standardized.data.factors[[1]], "Testing data" = data.frame())
-        temp.outputs[[n]] <- apply.ml.model(splitted.data = splitted.data, tune.grid = NULL, list.algo = temp.list.algo[[n]], list.taxa = list.taxa,
-                                      env.fact = env.fact, env.fact.full = env.fact.full, CV = CV, ODG = ODG, prev.inv = prev.inv)
-        cat("\nSaving outputs of algorithms in:\n", file.name)
-        saveRDS(temp.outputs[[n]], file = file.name, version = 2)
+          cat("\nNo statistical model output exist yet, we produce it and save it in", file.name)
+          if(CV|ODG){
+            stat.output <- mclapply(standardized.data, mc.cores = n.cores.splits, FUN = stat_mod_cv, CV, ODG, model.name, comm.corr, stat.iterations, n.chain, list.taxa, env.fact.full)
+            cat("\nSaving output of statistical models in:\n", file.name)
+            saveRDS(stat.output, file = file.name, version = 2) #version two here is to ensure compatibility across R versions
+    
+          } else {
+            stat.output <- stat_mod_cv(standardized.data, CV, ODG, model.name, comm.corr, stat.iterations, n.chain, list.taxa, env.fact.full)
+            cat("\nSaving output of statistical models in\n", file.name)
+            saveRDS(stat.output, file = file.name, version = 2)
+            }
+    
       }
-  }
+      return(stat.output)
+    })
+    
+    # Process output from stat models to fit structure of ml models (makes plotting easier)
+    stat.outputs.transformed <- transfrom.stat.outputs(stat.outputs = stat.outputs, list.taxa = list.taxa, CV = CV, ODG = ODG)
+    
+    print(paste("\nSimulation time of statistical model "))
+    print(proc.time()-ptm)
+    
+    
+    # ~~~~~~~~
+    ## ML ####
+    # ~~~~~~~~
+    
+    ptm <- proc.time() # to calculate time of simulation
+    
+    # Split computation of ML algorithm, because it' too heavy to read in
+    if(CV|ODG){ temp.list.algo <- list(list.algo[1:3], list.algo[4:length(list.algo)])
+    } else { temp.list.algo <- list(list.algo) }
+    temp.outputs <- list()
+    
+    for (n in 1:length(temp.list.algo)) {
+      # n = 1
+      info.file.ml.name <-  paste0("ML_models_",
+                                   paste0(paste(temp.list.algo[[n]], collapse = "_"), "_"),
+                                   info.file.name.models
+                                   )
+      
+      file.name <- paste0(dir.models.output, info.file.ml.name, ".rds")
+    
+      if(file.exists(file.name)){
+        cat("\nThe file already exists:\n", file.name, "\nReading it and uploading it in the environment.\n")
+        if(CV | ODG){ temp.outputs[[n]] <- readRDS(file = file.name)
+        } else { temp.outputs[[n]] <- readRDS(file = file.name) }
+      } else {
+        cat("\nNo ML outputs exist yet, we run the models and save the results in:\n", file.name)
+        if(CV|ODG){
+            if(server){
+              # Compute three splits in parallel (should be run on the server)
+              temp.outputs[[n]] <- mclapply(standardized.data.factors, mc.cores = n.cores.splits,
+                                       FUN = apply.ml.model, tune.grid = NULL, temp.list.algo[[n]], list.taxa, env.fact, env.fact.full, CV, ODG, prev.inv = prev.inv)
+            } else {
+              # Compute one split after the other
+              temp.outputs[[n]] <- lapply(standardized.data.factors, FUN = apply.ml.model, tune.grid = NULL, temp.list.algo[[n]], list.taxa, env.fact, env.fact.full, CV, ODG, prev.inv = prev.inv)
+            }
+            cat("\nSaving outputs of algorithms in:\n", file.name)
+            saveRDS(temp.outputs[[n]], file = file.name, version = 2)
+          } else {
+            splitted.data <- list("Training data" =  standardized.data.factors[[1]], "Testing data" = data.frame())
+            temp.outputs[[n]] <- apply.ml.model(splitted.data = splitted.data, tune.grid = NULL, list.algo = temp.list.algo[[n]], list.taxa = list.taxa,
+                                          env.fact = env.fact, env.fact.full = env.fact.full, CV = CV, ODG = ODG, prev.inv = prev.inv)
+            cat("\nSaving outputs of algorithms in:\n", file.name)
+            saveRDS(temp.outputs[[n]], file = file.name, version = 2)
+          }
+      }
+    }
+    
+    print(paste("Simulation time of different models ", info.file.ml.name))
+    print(proc.time()-ptm)
+
 }
 
-print(paste("Simulation time of different models ", info.file.ml.name))
-print(proc.time()-ptm)
 
-} # only ann analysis bracket
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+# ~~~~~~~~~
 ## ANN ####
+# ~~~~~~~~~
 
 info.file.ann.name <-  paste0("ANN_models_",
                               no.ann, "ann_",
@@ -517,9 +527,9 @@ if(CV|ODG){
 }
 
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+# ~~~~~~~~~~~~~~~~~
 ## Analysis RF ####
+# ~~~~~~~~~~~~~~~~~
 
 if(CV|ODG){
   if(models.analysis["rf.hyperparam"]){ # hyperparameter grid search
@@ -614,8 +624,9 @@ if(CV|ODG){
 # PROCESS OUTPUTS ####
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+# ~~~~~~~~~~~~~~~~~~~
 ## Merge outputs ####
+# ~~~~~~~~~~~~~~~~~~~
 
 if(CV | ODG){
   # Merge all CV outputs in one
@@ -708,7 +719,10 @@ info.file.name <- paste0(no.models, "models_",
                          info.file.name.models, "_")
 cat(info.file.name)
 
+
+# ~~~~~~~~~~~~~~~~~~~~
 ## Results tables ####
+# ~~~~~~~~~~~~~~~~~~~~
 
 # Produce final outputs with mean performance across splits
 if(CV | ODG){
@@ -748,27 +762,28 @@ cat(file.name)
 df.summary <- sumtable(df.results, add.median = TRUE, out='return')
 write.table(df.summary, file.name, sep=",", row.names=F, col.names=TRUE)
 
-# Nice table AUC and stand. dev. predictive performance during CV
+# Table 3: summary pred. perf. ####
+# Summarized table of AUC and stand. dev. predictive performance during CV
 file.name <- paste(dir.workspace, info.file.name, "TableSummaryStat_PredPerf", ".csv", sep="")
 cat(file.name)
 df.summary.pred.perf <- table.summary.pred.perf(df.summary = df.summary, list.models = list.models)
 write.table(df.summary.pred.perf, file.name, sep=",", row.names=F, col.names=TRUE)
 
-# Standardized deviance
+# Table SI A 4-5: standardize deviance per taxon ####
 df.stand.dev <-  df.results[,c(which(colnames(df.results) %in% c("Taxa", "Prevalence")), which(grepl("dev.pred", colnames(df.results)) & !grepl("expl.pow", colnames(df.results))))]
 colnames(df.stand.dev)[which(grepl("dev.pred", colnames(df.stand.dev)))] <- list.models
 file.name <- paste(dir.workspace, info.file.name, "TableStandDev", ".csv", sep="")
 cat(file.name)
 write.table(df.stand.dev, file.name, sep=",", row.names=F, col.names=TRUE)
 
-# Likelihood ratio
+# Table SI A 6-7: likelihood ratio per taxon ####
 df.likelihood.ratio <- df.results[,c(which(colnames(df.results) %in% c("Taxa", "Prevalence")), which(grepl("likeli", colnames(df.perf))))]
 colnames(df.likelihood.ratio)[which(grepl("likeli", colnames(df.likelihood.ratio)))] <- list.models
 file.name <- paste(dir.workspace, info.file.name, "TableLikelihoodRatio", ".csv", sep="")
 cat(file.name)
 write.table(df.likelihood.ratio, file.name, sep=",", row.names=F, col.names=TRUE)
 
-# AUC
+# Table SI A 8-9: AUC per taxon ####
 df.auc.pred <- df.results[,c(which(colnames(df.results) %in% c("Taxa", "Prevalence")), which(grepl("auc.pred", colnames(df.perf))))]
 colnames(df.auc.pred)[which(grepl("auc", colnames(df.auc.pred)))] <- list.models
 file.name <- paste(dir.workspace, info.file.name, "TableAUC", ".csv", sep="")
@@ -789,7 +804,9 @@ if((CV|ODG) & "iGLM" %in% list.models){
 # PLOTS ####
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-## CV vs ODG ####
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Compare predictive performance ####
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 if(case.compar["cv.odg"]){
   names.appcase <- c("CV", "ODG")
@@ -842,15 +859,14 @@ if(exists("df.perf1")){
 cat("\nPlots will be produce for the following application cases:", names(list.df.perf),
     "\nList of selected taxa:", sub("Occurrence.", "", select.taxa), "\n\n")
 
-source("utilities.r")
-source("plot_functions.r")
 
 if(length(list.df.perf) != 1){
   
   # Prepare data for plots 
   plot.data <- perf.plot.data(list.df.perf = list.df.perf)
   
-  # Boxplots standardized deviance
+  # Figure 1, SI A 19-20: boxplots comparison pred. perf. ####
+  # Boxplots comparing predictive performance of various cases; calibration vs prediction, CV vs ODG, AUC, ANN hyperparameters
   list.plots <- plot.boxplots.compar.appcase(plot.data = plot.data, list.models = list.models, models.analysis = models.analysis)
   file.name <- "ModelCompar_Boxplots"
   if(length(list.df.perf) != 1){
@@ -863,8 +879,11 @@ if(length(list.df.perf) != 1){
   }
   print.pdf.plots(list.plots = list.plots, width = 18, height = ifelse(any(models.analysis == TRUE), 21, 10), 
                   dir.output = dir.plots.output, info.file.name = temp.info.file.name, file.name = file.name, 
-                  png = TRUE, png.vertical = ifelse(any(models.analysis == TRUE), T, F), png.ratio = 1.2)
+                  png = TRUE, png.vertical = ifelse(any(models.analysis == TRUE), T, F), png.ratio = 0.8)
+  ggsave(file = paste0(dir.plots.output,  temp.info.file.name, file.name, ".svg"), 
+         plot = list.plots[[1]], width = 13, height = 7)
   
+  # Figure 2: bell plots comparison pred. perf. per prevalence ####
   if(!any(models.analysis == T)){
     # Standardized deviance vs prevalence
     list.plots <- plot.perfvsprev.compar.appcase(plot.data = plot.data, list.models = list.models,
@@ -872,20 +891,20 @@ if(length(list.df.perf) != 1){
     file.name <- "ModelCompar_PerfVSPrev"
     print.pdf.plots(list.plots = list.plots, width = 15, height = ifelse(length(list.df.perf) == 1, 10, 15), dir.output = dir.plots.output, info.file.name = temp.info.file.name, file.name = file.name, 
                     png = TRUE, png.square = TRUE, png.ratio = 0.8)
+    ggsave(file = paste0(dir.plots.output, temp.info.file.name,  file.name, ".svg"), 
+           plot = list.plots[[1]], width = 14, height = 11)
   }
 
-  # Table likelihood ratio
+  # Table 4: likelihood ratio ####
   table.likeli.ratio <- table.likelihood.ratio(list.df.perf = list.df.perf, list.models = list.models, models.analysis = models.analysis)
   file.name <- paste(dir.workspace, temp.info.file.name, "TableStatLikeliRatio", ".csv", sep="")
   cat(file.name)
   write.table(table.likeli.ratio, file.name, sep=",", row.names=F, col.names=TRUE)
 }
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-# Models comparison
-
-## GLM parameters comparison ####
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Compare GLM parameters ####
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 list.glm <- list.models[1:3]
 
@@ -902,17 +921,23 @@ if(CV | !ODG){
                   dir.output = dir.plots.output, info.file.name = info.file.name, file.name = file.name, png = TRUE, png.vertical = TRUE)
 }
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Map geographic distribution of predictions ####
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 if(CV){
-  select.models <- c("Null Model", list.models[7])
+  # select.models <- c("Null Model", list.models[7])
+  select.models <- list.models
   temp.select.taxa <- select.taxa
   list.df.models.pred <- make.list.models.pred(outputs.cv = outputs.cv, list.taxa = temp.select.taxa, list.models = list.models, prev.inv = prev.inv)
 
+  # Figure 3, SI A 21-23: maps of predicted probability of occurrence ####
   list.plots <- lapply(list.df.models.pred, FUN = plot.maps.models.pred, inputs = inputs, select.models = select.models)
   file.name <- "MapsModelsPrediction"
   if(length(select.models) != length(list.models)){
     file.name <- paste0(file.name, "_", length(select.models), "SelectMod")
-    width = 10
-    height = 5
+    width = 18
+    height = 10
   } else { # A4 format in inches 
     width = 8.3
     height = 11.7
@@ -920,23 +945,26 @@ if(CV){
   if(length(temp.select.taxa) != no.taxa){
     file.name <- paste0(file.name, "_", length(temp.select.taxa), "SelectTaxa")
   }
-  print.pdf.plots(list.plots = list.plots, width = width, height = height, 
+  print.pdf.plots(list.plots = list.plots, width = 2*width, height = 2*height, 
                   dir.output = dir.plots.output, 
                   info.file.name = info.file.name, file.name = file.name,
-                  png = T, png.ratio = 0.5)
-  
-  list.plots <- plot.maps.null.model(inputs = inputs, list.taxa = list.taxa, prev.inv = prev.inv, data = data)
-  file.name <- "MapsNullModel"
-  print.pdf.plots(list.plots = list.plots, width = 6, height = 4, 
-                  dir.output = dir.plots.output, 
-                  info.file.name = info.file.name, file.name = file.name,
-                  png = F)
+                  png = T, png.vertical = T,  png.ratio = 1)
+  if(length(select.models) == 2){
+    ggsave(file = paste0(dir.plots.output, "MapsModelsPrediction_Gammaridae_", "NullRF", ".svg"), 
+           plot = list.plots[[1]], width = 18, height = 10)
+  } else {
+    for (j in temp.select.taxa) {
+      # j <- temp.select.taxa[1]
+      cat("\nPrinting svg for", j)
+      ggsave(file = paste0(dir.plots.output, "MapsModelsPrediction_", j, ".svg"), 
+             plot = list.plots[[j]], width = 18, height = 20)
+    }
+  }
 }
 
-source("utilities.r")
-source("plot_functions.r")
-
-# Plots specifically related to trained models (and not to CV)
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Response shapes (ICE, PDP) ####
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 if(plot.all.ICE == T){ # to produce all ICE/PDP provided in manuscript and Supp. Inf.
   temp.select.taxa <- list(select.taxa, list.taxa[which(list.taxa != "Occurrence.Perlodidae")])
@@ -963,7 +991,7 @@ if(!CV){
     # select.env.fact <- env.fact[1]
     names(subselect.taxa) <- gsub("Occurrence.", "", subselect.taxa)
     
-    ## ICE/PDP ####
+    # ICE and PDP 
     
     no.samples <- 100
     no.steps <- 200
@@ -976,6 +1004,7 @@ if(!CV){
     cat(file.name)
     # Produce dataframes for plotting ICE and PDP
     if(file.exists(file.name)){
+      cat("Reading RDS file with plot data:\n", file.name)
       list.ice.plot.data <- readRDS(file.name)
     } else {
       cat("Producing data for plotting ICE and PDP and saving it in\n", file.name)
@@ -987,6 +1016,7 @@ if(!CV){
       saveRDS(list.ice.plot.data, file = file.name)
     }
     
+    # Figure 4, SI B and C: ICE with PDP on top ####
     # models.analysis["ice.random"] <- F
     list.list.ice.plots <- lapply(list.ice.plot.data, FUN = plot.ice.per.taxa, 
                               list.models = list.models, subselect = subselect, ice.random = models.analysis["ice.random"])
@@ -998,7 +1028,8 @@ if(!CV){
         file.name <- paste0(file.name, "_RandomAnal", length(vect.seeds), "Seeds")
       }
       cat("\nPrinting", file.name)
-      print.pdf.plots(list.plots = list.list.ice.plots[[j]], width = 8.3, height = 11.7, # A4 format in inches 
+      print.pdf.plots(list.plots = list.list.ice.plots[[j]], width = 9, # 8.3, 
+                      height = 6,# 11.7, # A4 format in inches 
                       dir.output = paste0(dir.plots.output, "ICE/"), 
                       info.file.name = info.file.name, file.name = file.name,
                       png = F)
@@ -1007,11 +1038,14 @@ if(!CV){
     ggsave(file = paste0(dir.plots.output, "ICE/", info.file.name, "ICE_", no.samples, "Samp_Gammaridae_", "1EnvFact", ".svg"), 
            plot = list.list.ice.plots$Gammaridae$Temperature, width = 8.3, height = 11.7)
     
+    
+    # Figure 5, SI A 24-26: overlapped PDP ####
+    all.env.fact <- F
     list.list.overlapped.pdp <- lapply(list.ice.plot.data, FUN = plot.overlapped.pdp, list.models = list.models,
-                                       ice.random = models.analysis["ice.random"], means = F)
+                                       ice.random = models.analysis["ice.random"], means = F, all.env.fact = all.env.fact)
     for (j in 1:length(subselect.taxa)) {
       taxon <- sub("Occurrence.", "", subselect.taxa[j])
-      file.name <- paste0("OverlappedPDP_", taxon, "_", length(select.env.fact), "EnvFact")
+      file.name <- paste0("OverlappedPDP_", taxon, "_", ifelse(all.env.fact, "All", length(select.env.fact)), "EnvFact")
       if(models.analysis["ice.random"]){
         file.name <- paste0(file.name, "_RandomAnal", length(vect.seeds), "Seeds")
         width = 8.3
@@ -1023,13 +1057,13 @@ if(!CV){
       cat("\nPrinting", file.name)
       print.pdf.plots(list.plots = list.list.overlapped.pdp[[j]], width = width, height = height,
                       dir.output = paste0(dir.plots.output, "ICE/"), 
-                      info.file.name = info.file.name, file.name = file.name,
-                      png = F)
+                      info.file.name = info.file.name, file.name = file.name)#,
+                      # png = T, png.square = T, png.ratio = 1)
     }
     ggsave(file = paste0(dir.plots.output, "ICE/", info.file.name, "OverlappedPDP_", "Gammaridae_", "1EnvFact", ".svg"), 
            plot = list.list.overlapped.pdp$Gammaridae$Temperature, width = 6, height = 4)
     
-    ## Response shape ####
+    # Simple response shapes (prediction vs observation) (not in the paper)
     
     list.list.plots <- lapply(subselect.taxa, FUN = plot.rs.taxa, outputs = outputs, list.models = list.models, 
                               normalization.data = normalization.data, env.fact = env.fact, CV = CV, ODG = ODG)

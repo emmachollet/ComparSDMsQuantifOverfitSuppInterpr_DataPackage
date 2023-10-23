@@ -1,6 +1,6 @@
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## 
-##                     ----  Functions plots ----
+##                     ---- PLOT FUNCTIONS ----
 ##
 ## --- A comparison of machine learning and statistical species distribution models: ---
 ##                -- when overfitting hurts interpretation -- 
@@ -13,6 +13,7 @@
 ##
 ## ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+## ---- UTILITIES ----
 
 ## ---- Print PDF and PNG ----
 
@@ -71,9 +72,10 @@ map.inputs <- function(directory, data){
     return(inputs)
 }
 
-## ---- Explorative plots -----
+## ---- SUPPORTING INFORMATION -----
+##    --- Explorative plots ---
 
-# Figure SI A 2: analysis splits ####
+# Figure SI A 2, 4-6: analysis splits ####
 analysis.splits <- function(inputs, splits, env.fact, vect.info){
   
   no.splits <- length(splits)
@@ -117,9 +119,10 @@ analysis.splits <- function(inputs, splits, env.fact, vect.info){
     if( v == "RiverBasin"){
       g <- g + labs(shape = "Main catchment")
     }
-    g <- g + theme(# plot.title = element_text(hjust = 0.5),
-      panel.grid.major = element_line(colour="transparent"),
-      plot.margin = unit(c(0.1,0.1,0.1,0.1), "lines"))
+    g <- g + theme(panel.grid.major = element_line(colour="transparent"),
+                   plot.margin = unit(c(0.1,0.1,0.1,0.1), "lines"),
+                   legend.title = element_text(size=24),
+                   legend.text = element_text(size=20))
     # g
     temp.list.plots <- append(temp.list.plots, list(g))
   }
@@ -159,7 +162,8 @@ analysis.splits <- function(inputs, splits, env.fact, vect.info){
       q <- q + facet_wrap(~factor, scales = "free",
                           labeller = env.fact_labeller, 
                           strip.position="top")
-      q <- q + theme(legend.text = element_text(size=22),
+      q <- q + theme(legend.title = element_text(size=24),
+                     legend.text = element_text(size=20),
                      strip.background = element_rect(fill = "white"))
       q <- q + labs(x = "Values of environmental factor",
                     y = "Density"#,
@@ -173,33 +177,6 @@ analysis.splits <- function(inputs, splits, env.fact, vect.info){
   
   return(list.plots)
 }
-
-# Figure SI X X: spatial distribution env. fact. ####
-maps.env.fact <- function(inputs, list.env.fact, data){
-  
-  plot_maps_variable = function (pair.fact.name, inputs, data) {
-    variable <- pair.fact.name[1]
-    print(variable)
-    name.variable <- pair.fact.name[2]
-    print(name.variable)
-    ggplot(data = data[,c("X","Y", variable)]) + 
-      geom_sf(data = inputs$ch, fill="#E8E8E8", color="black") + 
-      geom_sf(data = inputs$rivers.major, fill=NA, color="lightblue", show.legend = FALSE) + 
-      geom_sf(data = inputs$lakes.major, fill="lightblue", color="lightblue", show.legend = FALSE) + 
-      geom_point(aes(x=X, y=Y, color = data[, variable]), size= 3, alpha= 0.6) + 
-      scale_colour_gradient2(name = name.variable, 
-                                    high = "firebrick3") + 
-      theme_void(base_size = 18) + 
-      theme(panel.grid.major = element_line(colour="transparent"),
-                   plot.margin = unit(c(0.1,0.1,0.1,0.1), "lines"))
-  }
-  
-  # !! almost there, just missing labels 
-  list.plots <- lapply(list.env.fact, plot_maps_variable, inputs  = inputs, data = data)
-  
-  return(list.plots)
-}
-
 
 # Figure SI A 3: correlation matrix ####
 pdf.corr.mat.env.fact <- function(data, env.fact, file.name){
@@ -239,7 +216,36 @@ pdf.corr.mat.env.fact <- function(data, env.fact, file.name){
   cat("PDF and PNG printed")
 }
 
-# Figure SI A 9: prevalence analysis ####
+# Figure SI A 7-15: spatial distribution env. fact. ####
+maps.env.fact <- function(inputs, list.env.fact, data){
+  
+  plot_maps_variable = function (pair.fact.name, inputs, data) {
+    variable <- pair.fact.name[1]
+    print(variable)
+    name.variable <- pair.fact.name[2]
+    print(name.variable)
+    ggplot(data = data[,c("X","Y", variable)]) + 
+      geom_sf(data = inputs$ch, fill="#E8E8E8", color="black") + 
+      geom_sf(data = inputs$rivers.major, fill=NA, color="lightblue", show.legend = FALSE) + 
+      geom_sf(data = inputs$lakes.major, fill="lightblue", color="lightblue", show.legend = FALSE) + 
+      geom_point(aes(x=X, y=Y, color = data[, variable]), size= 3, alpha= 0.6) + 
+      scale_colour_gradient2(name = name.variable, 
+                             high = "firebrick3") + 
+      theme_void(base_size = 18) + 
+      # theme_void(base_size = 18) + 
+      theme(panel.grid.major = element_line(colour="transparent"),
+            plot.margin = unit(c(0.1,0.1,0.1,0.1), "lines"),
+            legend.title = element_text(size=24),
+            legend.text = element_text(size=20))
+  }
+  
+  # !! almost there, just missing labels 
+  list.plots <- lapply(list.env.fact, plot_maps_variable, inputs  = inputs, data = data)
+  
+  return(list.plots)
+}
+
+# Figure SI A 18: prevalence analysis ####
 analysis.prevalence <- function(prev.inv, splits, ODG){
   
   list.plots <- list()
@@ -302,9 +308,8 @@ analysis.prevalence <- function(prev.inv, splits, ODG){
   return(list.plots)
 }
 
-## ---- Models analysis plots ----
-
-# Paper plots ####
+##     ---- MANUSCRIPT ----
+## --- Models analysis plots ---
 
 # Extract GLMs parameters
 df.glm.param <- function(outputs, df.perf, list.glm, list.taxa, env.fact.full){
@@ -392,7 +397,9 @@ plot.glm.param <- function(outputs, df.perf, list.glm, list.taxa, env.fact.full,
                          ncol = 2)
   }
   p <- p + scale_colour_manual(values=col.vect)
-  p <- p + theme(strip.background = element_rect(fill = "white"))
+  p <- p + theme(strip.background = element_rect(fill = "white"),
+                 legend.title = element_text(size=24),
+                 legend.text = element_text(size=20))
   p <- p + labs(title = "Distribution of parameters", 
                 x = "Parameter value",
                 y = "Density")
@@ -412,7 +419,9 @@ plot.glm.param <- function(outputs, df.perf, list.glm, list.taxa, env.fact.full,
   q <- q + scale_colour_manual(values=col.vect, name="Model", labels=list.glm) +
     scale_shape_manual(values=c("triangle", "square", "circle"), name="Model", labels=list.glm)
   q <- q + guides(colour = FALSE)
-  q <- q + theme(strip.background = element_rect(fill = "white"))
+  q <- q + theme(strip.background = element_rect(fill = "white"),
+                 legend.title = element_text(size=24),
+                 legend.text = element_text(size=20))
   q <- q + labs(title = "Distribution of parameters across all taxa", 
                 x = "Prevalence",
                 y = "Parameter value")
@@ -422,7 +431,7 @@ plot.glm.param <- function(outputs, df.perf, list.glm, list.taxa, env.fact.full,
   
 }
 
-# Figure 1: Boxplots models performance ####
+# Figure 1,  SI A 19-20: Boxplots models performance ####
 plot.boxplots.compar.appcase <- function(plot.data, list.models, models.analysis){
   
   list.models.temp <- c("#000000" = "Null model", list.models)
@@ -451,7 +460,7 @@ plot.boxplots.compar.appcase <- function(plot.data, list.models, models.analysis
       names(median.pred.appcase2)[which(median.pred.appcase2 == median.pred.appcase2.best)], median.pred.appcase2.best, " during ", app.case[2], "\n")
   plot.data.median <- data.frame("median" = c(rep(median.null.model, 2), median.pred.appcase1.best, median.pred.appcase2.best), 
                                  "appcase" = rep(app.case, 2), 
-                                 "legend" = c(rep("Null model", 2), rep("Best predictive\nperformance", 2)))
+                                 "legend" = c(rep("Median of\nnull model", 2), rep("Median of best\npredicting model", 2)))
   
   plot.data.labels <- data.frame("label" = c("a)", "b)"),
                                  "dataset" = c("Calibration", "Calibration"),
@@ -469,8 +478,8 @@ plot.boxplots.compar.appcase <- function(plot.data, list.models, models.analysis
   p <- p + geom_boxplot()
   p <- p + ylim(0, 1.5) # ECR: because perf problems
   p <- p + geom_hline(data = plot.data.median, aes(yintercept = median, colour = legend), 
-                      size = 1, alpha = 0.7)
-  p <- p + scale_color_manual(values = c("Null model" = "#0C6FA6", "Best predictive\nperformance" = "#14A639"))
+                      size = 1.2, alpha = 0.7)
+  p <- p + scale_color_manual(values = c("Median of\nnull model" = "#1f78b4", "Median of best\npredicting model" = "#b2df8a"))
   p <- p + scale_fill_manual(values=c(Calibration = "#998ec3", Prediction = "#f1a340"))
   if(any(models.analysis == TRUE)){
     p <- p + scale_x_discrete(limits = lev)
@@ -481,18 +490,22 @@ plot.boxplots.compar.appcase <- function(plot.data, list.models, models.analysis
   if(length(app.case) != 1){
     p <- p + geom_text(data = plot.data.labels, y = ifelse(any(models.analysis == T), 0.2, 1.4), label = plot.data.labels$label, size = 7, fontface="bold")
   }
-
-  p <- p + theme_bw(base_size = 25)
-  p <- p + facet_wrap(~ appcase, nrow = 2, # scales = "free_y", 
-                      # labeller=label_parsed, 
-                      strip.position= ifelse(any(models.analysis == T), "top", "right"))
-  p <- p + theme(legend.text = element_text(size=22),
-                 strip.background = element_rect(fill = "white"),
-                 plot.margin = unit(c(1,1,1,1), "lines"))
+  p <- p + theme_bw(base_size = 20)
+  p <- p + facet_wrap(~ appcase, nrow = 2, strip.position= ifelse(any(models.analysis == T), "top", "right"))
+  # p <- p + annotate("segment", x = -3.8 , xend = -3.8 , y = -2.5 , yend = 2.2,
+  #                    colour = "blue", arrow = arrow()) # + 
+          # annotate("text", x = -3.8, y = -2.5, label = "dashes") 
+  p <- p + theme(strip.background = element_rect(fill = "white"),
+                 plot.margin = unit(c(0.1,0.1,0.1,0.1), "lines"),
+                 axis.title = element_text(size = 20),
+                 axis.text.x = element_text(size = 16),
+                 axis.text.y = element_text(size = 16),
+                 legend.title = element_text(size=24),
+                 legend.text = element_text(size=20))
   p <- p + labs(x="Model",
-                y="Standardized deviance",
+                y="Standardized deviance\n ",
                 fill = "",
-                colour = "Median",
+                colour = "",
                 # title = "Model performance comparison")
                 title = "")
   # p
@@ -506,12 +519,13 @@ plot.boxplots.compar.appcase <- function(plot.data, list.models, models.analysis
   q <- q + ylim(0.3, 1.1) # ECR: because perf problems
   q <- q + geom_hline(yintercept = 0.5, linetype='longdash', col = 'black')
   q <- q + scale_fill_manual(values=c("#998ec3", "#f1a340"))
-  q <- q + theme_bw(base_size = 25)
+  q <- q + theme_bw(base_size = 20)
   q <- q + facet_wrap(~ appcase, nrow = 2, # scales = "free_y", 
                       # labeller=label_parsed, 
                       strip.position = ifelse(any(models.analysis == T), "top", "right"))
-  q <- q + theme(legend.text = element_text(size=22),
-                 strip.background = element_rect(fill = "white"))
+  q <- q + theme(strip.background = element_rect(fill = "white"),
+                 legend.title = element_text(size=24),
+                 legend.text = element_text(size=20))
   if(any(models.analysis == TRUE)){
     q <- q + coord_flip()
   }
@@ -577,10 +591,10 @@ plot.perfvsprev.compar.appcase <- function(plot.data, list.models, list.taxa){
   } else {
     p <- p + facet_wrap(~ dataset)
   }
-  p <- p + theme(legend.title = element_text(size=22),
-               legend.text = element_text(size=20),
-               strip.background = element_rect(fill="white"))
-  p <- p + labs(y = "Standardized deviance",
+  p <- p + theme(strip.background = element_rect(fill="white"),
+                 legend.title = element_text(size=24),
+                 legend.text = element_text(size=20))
+  p <- p + labs(y = "Standardized deviance\n ",
                  x = "Prevalence (%)",
                  # shape = "Taxonomic level",
                  color = "Model",
@@ -602,9 +616,9 @@ plot.perfvsprev.compar.appcase <- function(plot.data, list.models, list.taxa){
   q <- q + theme_bw(base_size = 20)
   q <- q + facet_grid(appcase ~ dataset # , scales = "free"
   )
-  q <- q + theme(legend.title = element_text(size=22),
-                 legend.text = element_text(size=20),
-                 strip.background = element_rect(fill="white"))
+  q <- q + theme(strip.background = element_rect(fill="white"),
+                 legend.title = element_text(size=24),
+                 legend.text = element_text(size=20))
   q <- q + labs(y = "AUC",
                 x = "Prevalence (%)",
                 # shape = "Taxonomic level",
@@ -619,8 +633,57 @@ plot.perfvsprev.compar.appcase <- function(plot.data, list.models, list.taxa){
   return(list.plots)
 }
 
+# Figure 3, SI A 21-23: maps of predicted probability of occurrence ####
+plot.maps.models.pred <- function(df.models.pred, inputs, select.models = list.models){
+    
+    # df.models.pred <- list.df.models.pred[[1]]
+    plot.data <- df.models.pred
+    name.taxon <- gsub("Occurrence.", "", colnames(plot.data)[which(grepl("Occurrence.", colnames(plot.data)))])
+    
+    # Reorder model factor levels to have right order on panel
+    plot.data <- filter(plot.data, Model %in% select.models)
+    plot.data <- plot.data %>%
+        mutate(across(Model, factor, levels = select.models))
+    
+    # Map geometries
+    g <- ggplot()
+    g <- g + geom_sf(data = inputs$ch, fill=NA, color="black")
+    g <- g + geom_sf(data = inputs$rivers.major, fill=NA, color="lightblue", show.legend = FALSE)
+    g <- g + geom_sf(data = inputs$lakes.major, fill="lightblue", color="lightblue", show.legend = FALSE)
+    g <- g + geom_point(data = plot.data, aes(X, Y, size = present, 
+                                              color = Observation), 
+                        alpha = 0.7)
+    g <- g + facet_wrap(~ Model, strip.position="top", ncol = 2)
+    
+    # Configure themes and labels
+    g <- g + theme_void()
+    g <- g + theme(plot.title = element_text(size = 14, vjust = 10),
+                   panel.grid.major = element_line(colour="transparent"),
+                   plot.margin = unit(c(1,1,1,1), "lines"),
+                   legend.title = element_text(size=24),
+                   legend.text = element_text(size=20),
+                   strip.text = element_text(size=20))
+    
+    g <- g + labs(title = paste("Geographic distribution of models prediction for", name.taxon),
+                  x = "",
+                  y = "",
+                  size = "Probability of\noccurrence",
+                  color = "Observation")
+    
+    # Configure legends and scales
+    g <- g + guides(size = guide_legend(override.aes = list(color="black", stroke=0), order=1))
+    # g <- g + scale_size(range = c(0.3,1.5))
+    g <- g + scale_radius(limits = c(0,1), breaks = seq(0, 1, 0.25), range = c(0.3, 2.5))
+    
+    # g <- g + scale_size_area(max_size = 2)
+    g <- g + scale_color_manual(values=c(absent = "#ca0020", present = "#0571b0"), labels=c("Absence", "Presence"))
+    g <- g + scale_shape_identity() # Plot the shape according to the data
+    
+    return(g)
+}
 
-# Figure 3, SI B and SI C: ICE and PDP ####
+
+# Figure 4, SI B and SI C: ICE and PDP ####
 plot.ice.per.taxa <- function(ice.plot.data.taxon, list.models, subselect, ice.random){
   
   # ice.plot.data.taxon <- list.ice.plot.data[[1]]
@@ -642,6 +705,14 @@ plot.ice.per.taxa <- function(ice.plot.data.taxon, list.models, subselect, ice.r
     plot.data <- filter(plot.data, plot.data$variable %in% temp.range.fact)
     plot.data.mean.pdp <- filter(plot.data.mean.pdp, plot.data.mean.pdp$variable %in% temp.range.fact)
     plot.data.means <- filter(plot.data.means, plot.data.means$variable %in% temp.range.fact)
+    
+    if(length(list.models) < 8){
+      plot.data <- filter(plot.data, plot.data$Model %in% list.models)
+      plot.data.mean.pdp <- filter(plot.data.mean.pdp, plot.data.mean.pdp$Model %in% list.models)
+      plot.data.means <- filter(plot.data.means, plot.data.means$Model %in% list.models)
+      plot.data.min.max.pdp <- filter(plot.data.min.max.pdp, plot.data.min.max.pdp$Model %in% list.models)
+      plot.data.rug <- filter(plot.data.rug, plot.data.rug$Model %in% list.models)
+    }
     
     # Select seed if no analysis of randomness
     if(!ice.random){
@@ -685,14 +756,16 @@ plot.ice.per.taxa <- function(ice.plot.data.taxon, list.models, subselect, ice.r
       p <- p + geom_vline(xintercept = split.value, linetype='dashed', col = 'grey30')
     }
     if(ice.random){
-      p <- p + facet_grid(Model ~ Seed)
+      p <- p + facet_grid(Seed ~ Model)
     } else {
       p <- p + facet_wrap( ~ Model,# scales = "free_x", 
                            strip.position="top",
                            ncol = 2)
     }
     p <- p + theme_bw(base_size = 10)
-    p <- p + theme(strip.background = element_rect(fill = "white"))
+    p <- p + theme(strip.background = element_rect(fill = "white"),
+                   legend.title = element_text(size=24),
+                   legend.text = element_text(size=20))
     p <- p + labs(title = paste("ICE and PDP for", name.taxon), # paste(l),
                   # subtitle = paste("Resolution:", no.steps/no.subselect, "steps"),
                   x = name.fact,
@@ -706,7 +779,8 @@ plot.ice.per.taxa <- function(ice.plot.data.taxon, list.models, subselect, ice.r
   return(list.plots)
 }
 
-plot.overlapped.pdp <- function(ice.plot.data.taxon, list.models, ice.random, means = F){
+# Figure 5, SI A 24-26: overlapped PDP ####
+plot.overlapped.pdp <- function(ice.plot.data.taxon, list.models, ice.random, means = F, all.env.fact = F){
   
   # ice.plot.data.taxon <- list.ice.plot.data[[1]]
   plot.overlapped.pdp.per.env.fact = function (plot.data.env.fact, list.models, ice.random, means) {
@@ -748,7 +822,10 @@ plot.overlapped.pdp <- function(ice.plot.data.taxon, list.models, ice.random, me
       p <- p + facet_wrap(~ Model, strip.position = "top", ncol = 2)
     }
     p <- p + theme_bw(base_size = 10)
-    p <- p + theme(strip.background = element_rect(fill = "white"))
+    p <- p + theme(strip.background = element_rect(fill = "white"),
+                   axis.title = element_text(size=18),
+                   legend.title = element_text(size=22),
+                   legend.text = element_text(size=18))
     p <- p + labs(title = paste("Overlapped", title, "for", name.taxon), # paste(l),
                   x = name.fact,
                   y = "Predicted probability of occurrence")
@@ -756,12 +833,45 @@ plot.overlapped.pdp <- function(ice.plot.data.taxon, list.models, ice.random, me
     return(p)
   }
   
-  list.plots <- lapply(ice.plot.data.taxon, plot.overlapped.pdp.per.env.fact, list.models, ice.random, means)
+  if(all.env.fact & !ice.random){
+    name.taxon <- ice.plot.data.taxon[[1]][["name.taxon"]]
+    temp.list.pdp <- lapply(ice.plot.data.taxon,"[", "plot.data.mean.pdp")
+    temp.plot.data <- bind_rows(temp.list.pdp, .id = "column_label")
+    plot.data <- temp.plot.data$plot.data.mean.pdp
+    plot.data$name.variable <- temp.plot.data$column_label
+    plot.data <- filter(plot.data, plot.data$Seed == 2021)
+    
+    temp.list.rug <- lapply(ice.plot.data.taxon,"[", "plot.data.rug")
+    temp.plot.data <- bind_rows(temp.list.rug, .id = "column_label")
+    plot.data.rug <- temp.plot.data$plot.data.rug
+    plot.data.rug$name.variable <- temp.plot.data$column_label
+    
+    p <- ggplot(plot.data, aes(x = variable, y = mean.pdp))
+    p <- p + geom_line(aes(color = Model), alpha = 0.7, size = 1) # remove legend that would be the number of samples
+    p <- p + scale_colour_manual(values=names(list.models))
+    p <- p + geom_rug(data = plot.data.rug,
+                      aes(x = variable), 
+                      color = "grey20", alpha = 0.7, inherit.aes = F)
+    p <- p + facet_wrap(~ name.variable, ncol = 3, scales = "free")
+    p <- p + theme_bw(base_size = 10)
+    p <- p + theme(strip.background = element_rect(fill = "white"),
+                   title = element_text(size = 22),
+                   legend.title = element_text(size=22),
+                   legend.text = element_text(size=18),
+                   strip.text = element_text(size = 18))
+    p <- p + labs(title = paste("Overlapped PDP for", name.taxon), # paste(l),
+                  x = "Environmental factor" ,
+                  y = "Predicted probability of occurrence")
+    list.plots <- list(p)
+    names(list.plots) <- name.taxon
+  } else {
+    list.plots <- lapply(ice.plot.data.taxon, plot.overlapped.pdp.per.env.fact, list.models, ice.random, means)
+  }
   
   return(list.plots)
 }
 
-# Models prediction vs observed presence/absence
+# Response shape models prediction vs observed presence/absence
 plot.rs.taxa <- function(taxa, outputs, list.models, normalization.data, env.fact, CV, ODG){
   
   # taxa <- subselect.taxa[1]
@@ -862,7 +972,9 @@ plot.rs.taxa <- function(taxa, outputs, list.models, normalization.data, env.fac
       split.value <- max(plot.data[which(plot.data[,"set"] == "Training"),"value"])
       g <- g + geom_vline(xintercept = split.value, linetype='dashed', col = 'grey30')
     }
-    g <- g + theme(strip.background = element_rect(fill = "white"))
+    g <- g + theme(strip.background = element_rect(fill = "white"),
+                   legend.title = element_text(size=24),
+                   legend.text = element_text(size=20))
     g <- g + scale_color_manual(name = "Observation", values=c(absent = "#c2141b", present = "#007139"), labels = c("Absence", "Presence"))
     g <- g + labs( # title = paste(names(k), "-",paste(taxon)),
       # title = paste("Probability of occurrence vs explanatory variables"),
@@ -879,97 +991,4 @@ plot.rs.taxa <- function(taxa, outputs, list.models, normalization.data, env.fac
   return(list.plots)
   
 }
-
-plot.maps.models.pred <- function(df.models.pred, inputs, select.models = list.models){
-  
-  # df.models.pred <- list.df.models.pred[[1]]
-  plot.data <- df.models.pred
-  name.taxon <- gsub("Occurrence.", "", colnames(plot.data)[which(grepl("Occurrence.", colnames(plot.data)))])
-  
-  # Reorder model factor levels to have right order on panel
-  plot.data <- filter(plot.data, Model %in% select.models)
-  plot.data <- plot.data %>%
-    mutate(across(Model, factor, levels = select.models))
-  
-  # Map geometries
-  g <- ggplot()
-  g <- g + geom_sf(data = inputs$ch, fill=NA, color="black")
-  g <- g + geom_sf(data = inputs$rivers.major, fill=NA, color="lightblue", show.legend = FALSE)
-  g <- g + geom_sf(data = inputs$lakes.major, fill="lightblue", color="lightblue", show.legend = FALSE)
-  g <- g + geom_point(data = plot.data, aes(X, Y, size = present, 
-                                            color = Observation), 
-                      alpha = 0.7)
-  g <- g + facet_wrap(~ Model, strip.position="top", ncol = 2)
-  
-  # Configure themes and labels
-  g <- g + theme_void()
-  g <- g + theme(plot.title = element_text(size = 14, vjust = 10),
-                 panel.grid.major = element_line(colour="transparent"),
-                 plot.margin = unit(c(1,1,1,1), "lines"),
-                 legend.title = element_text(size=12))
-  
-  g <- g + labs(title = paste("Geographic distribution of models prediction for", name.taxon),
-                x = "",
-                y = "",
-                size = "Probability of\noccurrence",
-                color = "Observation")
-  
-  # Configure legends and scales
-  g <- g + guides(size = guide_legend(override.aes = list(color="black", stroke=0), order=1),
-                  # alpha = guide_legend(override.aes = list(size=6, shape=c(19,21), stroke=c(0,0.75), color="black"), order=2),
-                  color = guide_legend(override.aes = list(size=6, stroke=0), order=3))
-  g <- g + scale_size(range = c(0.3,1.5))
-  g <- g + scale_color_manual(values=c(absent = "#c2141b", present = "#007139"), labels=c("Absence", "Presence"))
-  g <- g + scale_shape_identity() # Plot the shape according to the data
-  
-  return(g)
-}
-  
-# plot.maps.null.model <- function(inputs, list.taxa, prev.inv, data){
-#   
-#   list.plots <- lapply(list.taxa, function(taxon){
-#     # taxon <- list.taxa[1]
-#     name.taxon <- gsub("Occurrence.", "", taxon)
-#     prev.taxon <- prev.inv[which(prev.inv$Occurrence.taxa == taxon), "Prevalence"]
-#     observ.taxon <- data[,c("X", "Y", taxon)]
-#     observ.taxon$Observation <- ifelse(observ.taxon[,taxon] == 1, "present", "absent" )
-#     
-#     # Map geometries
-#     g <- ggplot()
-#     g <- g + geom_sf(data = inputs$ch, fill=NA, color="black")
-#     g <- g + geom_sf(data = inputs$rivers.major, fill=NA, color="lightblue", show.legend = FALSE)
-#     g <- g + geom_sf(data = inputs$lakes.major, fill="lightblue", color="lightblue", show.legend = FALSE)
-#     g <- g + geom_point(data = observ.taxon, aes(X, Y, color = Observation), 
-#                         alpha = 0.7, size = prev.taxon)
-#     # g <- g + facet_wrap(~ Model, strip.position="top", ncol = 2)
-#     
-#     # Configure themes and labels
-#     g <- g + theme_void()
-#     g <- g + theme(plot.title = element_text(size = 16),#, hjust = 0.5),
-#                    panel.grid.major = element_line(colour="transparent"),
-#                    plot.margin = unit(c(0.1,0.1,0.1,0.1), "lines"),
-#                    legend.title = element_text(size=14))
-#     
-#     g <- g + labs(title = paste("Geographic distribution of null model for", name.taxon, "\nPrevalence:", round(prev.taxon, digits = 2)),
-#                   x = "",
-#                   y = "",
-#                   color = "Observation")
-#     
-#     # Configure legends and scales
-#     g <- g + guides(size = guide_legend(override.aes = list(color="black", stroke=0), order=1),
-#                     # alpha = guide_legend(override.aes = list(size=6, shape=c(19,21), stroke=c(0,0.75), color="black"), order=2),
-#                     color = guide_legend(override.aes = list(size=6, stroke=0), order=3))
-#     g <- g + scale_size(range = c(0.5,1.5))
-#     g <- g + scale_color_manual(values=c(absent = "#c2141b", present = "#007139"), labels=c("Absence", "Presence"))
-#     g <- g + scale_shape_identity() # Plot the shape according to the data
-#     return(g)
-#   })
-#   
-#   return(list.plots)
-#   
-# }
-  
-  
-  
-  
   
