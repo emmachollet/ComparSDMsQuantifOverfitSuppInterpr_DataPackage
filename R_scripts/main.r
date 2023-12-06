@@ -26,7 +26,7 @@ file.prefix <- ifelse(BDM, "BDM_", "All_")
 
 CV <- F              # train for cross-validation (CV)
 ODG <- ifelse(CV, F, # if CV = T, no out-of-domain generalization (ODG)
-                  F  # train for out-of-domain generalization (ODG)
+                  F  # train for out-of-domain generalization (ODG), set to T for ODG
                   )  # if CV = F and ODG = F, train on whole dataset (FIT)
 
 ODG.info <- c(training.ratio = 0.8,     # ratio of data used for calibration in ODG
@@ -37,7 +37,7 @@ train.info <- ifelse(CV, "CV_",
                      ifelse(ODG, paste0(paste(c("ODG_", ODG.info["training.ratio"], ODG.info["variable"]), collapse = ""), "_"),
                             "FIT_"))
 
-dl <- F                  # allow data leakage in standardization between training and testing set
+dl <- F                  # allow "data leakage" in standardization between training and testing set, if F standardization is done before splitting, else after splitting
 if(!CV){ dl <- F }       # if it's only fitting, no dataleakage
 
 models.analysis <- c(    # comparison analysis of different models structures:
@@ -92,8 +92,8 @@ if ( !require("rstan") ) { install.packages("rstan"); library("rstan") }        
 # Artificial Neural Networks (ANN)
 if ( !require("reticulate") ) { install.packages("reticulate"); library("reticulate") }
 # install_miniconda()              # run this the very first time reticulate is installed
-# install.packages("tensorflow")
-library("tensorflow")
+# install.packages("tensorflow")                                                            # installation of tensorflow and keras may make problems
+library("tensorflow")                                                                       # depending on R version
 # install_tensorflow()             # run this line only when opening new R session
 # install.packages("keras")
 library("keras")
